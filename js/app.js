@@ -1,9 +1,9 @@
 // 화면(UI) 담당. 계산은 analyzer.js, 파일 해석은 parser.js가 맡는다.
-import { CONTENT_TYPES, UNCLASSIFIED, TYPE_BY_ID, TYPE_NOUN, HHI_LEVELS, PERIOD_OPTIONS, DEFAULT_PERIOD, STORAGE_KEYS } from './config.js';
+import { CONTENT_TYPES, UNCLASSIFIED, TYPE_BY_ID, TYPE_NOUN, HHI_LEVELS, PERIOD_OPTIONS, DEFAULT_PERIOD, STORAGE_KEYS, MIN_SAMPLE } from './config.js';
 import { detectAndParse, ParseError } from './parser.js';
 import {
   buildChannelIndex, prepareRecords, dataRange, resolvePeriod, filterByPeriod, analyze,
-  comparePrediction, toHistoryEntry, compareEntries,
+  comparePrediction, toHistoryEntry, compareEntries, hasEnoughSample,
 } from './analyzer.js';
 import { storage } from './storage.js';
 import { makeSampleRecords, SAMPLE_PREDICTION } from './sample.js';
@@ -79,6 +79,7 @@ function currentRoute() {
 
 function render() {
   const route = currentRoute();
+  closeConsent();
   charts.destroyAll();
   document.querySelectorAll('.nav a').forEach((a) => {
     const target = a.getAttribute('href').slice(1);
@@ -295,6 +296,54 @@ function viewUpload() {
   ['dragleave', 'drop'].forEach((ev) => drop.addEventListener(ev, (e) => { e.preventDefault(); drop.classList.remove('drag'); }));
   drop.addEventListener('drop', (e) => { const f = e.dataTransfer.files && e.dataTransfer.files[0]; if (f) handleFile(f); });
   renderUploadStatus();
+  ensureConsent();
+}
+
+// ---------- 데이터 이용 안내(동의) 모달 ----------
+// 업로드 화면에 들어올 때 한 번 보여준다. 같은 탭에서는 다시 묻지 않는다(sessionStorage, 탭을 닫으면 사라짐).
+const CONSENT_KEY = 'infodiet.consent.v1';
+let consentMemory = false; // sessionStorage를 쓸 수 없을 때를 위한 대체
+
+function hasConsent() {
+  if (consentMemory) return true;
+  try { return sessionStorage.getItem(CONSENT_KEY) === '1'; } catch (e) { return false; }
+}
+function saveConsent() {
+  consentMemory = true;
+  try { sessionStorage.setItem(CONSENT_KEY, '1'); } catch (e) { /* 저장할 수 없으면 이번 화면에서만 기억 */ }
+}
+function closeConsent() {
+  const m = document.getElementById('consent');
+  if (m) m.remove();
+  document.removeEventListener('keydown', onConsentKey);
+}
+function onConsentKey(e) { if (e.key === 'Escape') { closeConsent(); go('home'); } }
+
+function ensureConsent() {
+  if (hasConsent() || document.getElementById('consent')) return;
+  const modal = document.createElement('div');
+  modal.id = 'consent';
+  modal.className = 'modal-bg';
+  modal.innerHTML = `
+    <div class="modal" role="dialog" aria-modal="true" aria-labelledby="consentTitle">
+      <h2 id="consentTitle">시작하기 전에 확인해 주세요</h2>
+      <ul class="consent-list">
+        <li>업로드한 시청기록 파일은 <b>이 브라우저 안에서만</b> 분석되며, 서버로 전송되거나 저장되지 않아요.</li>
+        <li>분석에는 <b>시청일시와 채널명(채널 ID)</b>을 사용해요. 같은 시각의 중복 기록을 걸러내기 위해 영상 주소(없으면 제목)를 분석 중에만 임시로 쓰며, 유형 분류에는 쓰지 않고 저장하지 않아요.</li>
+        <li>분석 결과는 본인에게만 보이며 팀이나 제3자에게 제공되지 않아요.</li>
+        <li>‘이 결과 저장하기’를 직접 누른 경우에만 분석 기간, 유형별 비중, HHI·CR3 요약이 이 브라우저에 저장돼요.</li>
+        <li>정치적 성향이나 채널의 호불호·신뢰성은 판단하지 않고, 시청 패턴 지표만 보여줘요.</li>
+      </ul>
+      <div class="btn-row modal-actions">
+        <button class="btn" type="button" id="consentCancel">취소</button>
+        <button class="btn primary" type="button" id="consentOk">동의하고 계속하기</button>
+      </div>
+    </div>`;
+  document.body.appendChild(modal);
+  document.getElementById('consentCancel').addEventListener('click', () => { closeConsent(); go('home'); });
+  document.getElementById('consentOk').addEventListener('click', () => { saveConsent(); closeConsent(); const d = document.getElementById('drop'); if (d) d.focus(); });
+  document.addEventListener('keydown', onConsentKey);
+  document.getElementById('consentOk').focus();
 }
 
 async function handleFile(file) {
@@ -370,10 +419,13 @@ function renderUploadStatus() {
     const btn = document.getElementById('analyzeBtn');
     if (!p) { el.innerHTML = '<span class="notice warn" style="display:block">시작일이 종료일보다 늦어요. 날짜를 다시 골라 주세요.</span>'; btn.disabled = true; return; }
     const cnt = filterByPeriod(u.prepared.records, p).length;
-    el.innerHTML = cnt
+    const enough = hasEnoughSample(cnt);
+    el.innerHTML = enough
       ? `선택한 기간(${ymd(p.start)} ~ ${ymd(p.end)})의 시청기록 <b class="num">${n0(cnt)}건</b>을 분석해요.`
-      : `<span class="notice warn" style="display:block">선택한 기간(${ymd(p.start)} ~ ${ymd(p.end)})에는 시청기록이 없어요. 기간을 넓혀 주세요.</span>`;
-    btn.disabled = !cnt || !!state.dbError;
+      : cnt
+        ? `<span class="notice warn" style="display:block"><strong>분석 데이터가 부족합니다.</strong> 선택한 기간(${ymd(p.start)} ~ ${ymd(p.end)})의 시청기록이 ${n0(cnt)}건이에요. 결과의 신뢰도를 위해 최소 ${n0(MIN_SAMPLE)}건이 필요해요. 기간을 넓혀 주세요.</span>`
+        : `<span class="notice warn" style="display:block">선택한 기간(${ymd(p.start)} ~ ${ymd(p.end)})에는 시청기록이 없어요. 기간을 넓혀 주세요.</span>`;
+    btn.disabled = !enough || !!state.dbError;
   };
   bindPeriod('up', update);
   update();
@@ -410,6 +462,11 @@ async function viewAnalyzing() {
   const inPeriod = filterByPeriod(state.upload.prepared.records, period);
   set('period', inPeriod.length ? 'done' : 'fail', `${period.label} · ${n0(inPeriod.length)}건`);
   if (!inPeriod.length) { app.insertAdjacentHTML('beforeend', '<p class="notice warn">선택한 기간에 시청기록이 없어요. <a href="#upload">기간을 바꿔 주세요.</a></p>'); return; }
+  if (!state.upload.isSample && !hasEnoughSample(inPeriod.length)) {
+    set('period', 'fail', `${period.label} · ${n0(inPeriod.length)}건`);
+    app.insertAdjacentHTML('beforeend', `<div class="notice warn" role="alert"><strong>분석 데이터가 부족합니다.</strong> 선택한 기간의 시청기록이 ${n0(inPeriod.length)}건이에요. 결과의 신뢰도를 위해 최소 ${n0(MIN_SAMPLE)}건이 필요해요.<div class="btn-row" style="margin-top:10px"><a class="btn" href="#upload">기간 바꾸기</a><a class="btn" href="#home">메인으로</a></div></div>`);
+    return;
+  }
 
   set('db', 'run'); await frame();
   set('db', 'done', `등록 채널 ${n0(state.index.size)}개`);
@@ -621,7 +678,7 @@ function viewResult() {
   });
   const save = document.getElementById('saveBtn');
   save.addEventListener('click', () => {
-    const entry = toHistoryEntry(r, activePrediction(), { fileName: state.upload.fileName });
+    const entry = toHistoryEntry(r, activePrediction());
     if (storage.addHistory(entry)) { state.savedId = entry.id; toast('이 브라우저에 결과를 저장했어요.'); render(); }
     else toast('저장하지 못했어요. 브라우저가 저장을 막고 있을 수 있어요.');
   });
@@ -660,7 +717,7 @@ function viewDetail() {
   const terms = c.channels.slice(0, 5).map((x) => `${p1(x.pct)}²`);
   const restSum = c.channels.slice(5).reduce((s, x) => s + x.pct * x.pct, 0);
   const ms = t.matchStats;
-  const csv = ['channel_name,watch_count,type', ...r.unclassifiedChannels.map((x) => `"${x.name.replace(/"/g, '""')}",${x.count},`)].join('\n');
+  const csv = ['channel_name,channel_id,watch_count,type', ...r.unclassifiedChannels.map((x) => `"${x.name.replace(/"/g, '""')}",${x.channelId || ''},${x.count},`)].join('\n');
   app.innerHTML = `
   ${sampleBanner()}
   <header class="stack">
@@ -712,7 +769,7 @@ function viewDetail() {
 
   <section class="card stack">
     <h2>유형 미분류 채널 <span class="pill">${n0(r.unclassifiedChannels.length)}개</span></h2>
-    <p class="small">팀에서 채널 DB(<code>data/channel-types.json</code>)에 추가할 수 있도록 CSV로 정리했어요. <code>type</code> 열에 vlog, entertain, game, beauty, knowledge, music, sports, news 중 하나를 채워 넣으면 돼요.</p>
+    <p class="small">팀에서 채널 DB(<code>data/channel-types.json</code>)에 추가할 수 있도록 CSV로 정리했어요. <code>type</code> 열에 vlog, entertain, game, beauty, knowledge, music, sports, news 중 하나를 채워 넣으면 돼요. <code>channel_id</code>(UC로 시작)가 있는 채널은 DB에 ID까지 넣으면 채널 이름이 바뀌어도 매칭돼요.</p>
     <textarea class="copybox" id="csvBox" readonly aria-label="미분류 채널 CSV">${esc(csv)}</textarea>
     <div class="btn-row"><button class="btn small" id="copyCsv" type="button">CSV 복사</button></div>
   </section>`;
@@ -742,7 +799,7 @@ function viewHistory() {
   const hist = storage.getHistory();
   const canStore = storage.available();
   const current = state.result && !state.result.empty && !state.upload.isSample && !state.savedId
-    ? { ...toHistoryEntry(state.result, activePrediction(), { fileName: state.upload.fileName }), id: '__current__', current: true }
+    ? { ...toHistoryEntry(state.result, activePrediction()), id: '__current__', current: true }
     : null;
   const entries = current ? [current, ...hist] : hist;
 
@@ -774,7 +831,7 @@ function viewHistory() {
     <p class="small">이 서비스에는 로그인과 서버가 없어요. 아래 정보만 <b>지금 쓰고 있는 브라우저의 LocalStorage</b>에 저장돼요.</p>
     <ul class="small" style="margin:0;padding-left:18px;display:grid;gap:2px">
       <li><code>${STORAGE_KEYS.prediction}</code>: 내가 고른 예상 유형</li>
-      <li><code>${STORAGE_KEYS.history}</code>: 저장한 결과(분석 날짜, 기간, 유형별 건수·비중, HHI, CR3, 대표 유형, 그때의 예상, 파일 이름) · 최대 20개</li>
+      <li><code>${STORAGE_KEYS.history}</code>: 저장한 결과(분석 날짜, 기간, 유형별 건수·비중, HHI, CR3, 대표 유형, 그때의 예상) · 최대 20개</li>
     </ul>
     <p class="small">원본 시청기록 파일, 영상 제목, 채널명은 저장하지 않아요. 브라우저 데이터를 지우거나 다른 기기·브라우저를 쓰면 저장한 결과를 되살릴 수 없어요.</p>
     <div class="btn-row">

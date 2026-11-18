@@ -4,7 +4,7 @@ import { readFileSync } from 'node:fs';
 import { parseTakeoutJSON, parseTakeoutHTML, detectAndParse, parseHumanDate, cleanTitle, ParseError } from '../js/parser.js';
 import {
   buildChannelIndex, classifyChannel, prepareRecords, dataRange, resolvePeriod, analyze,
-  computeConcentration, comparePrediction, computeTypes, toHistoryEntry, compareEntries, normalizeName,
+  computeConcentration, comparePrediction, computeTypes, toHistoryEntry, compareEntries, normalizeName, hasEnoughSample,
 } from '../js/analyzer.js';
 
 const db = JSON.parse(readFileSync(new URL('../data/channel-types.json', import.meta.url), 'utf8'));
@@ -158,6 +158,7 @@ test('analyze 전체 + 기간 밖 기록 제외 + 저장/비교', () => {
   const cmp = compareEntries(e1, e2);
   assert.ok(cmp.hhi.diff !== 0);
   assert.equal(JSON.stringify(e1).includes('YTN'), false, '저장 데이터에 채널명이 들어가지 않음');
+  assert.equal('fileName' in e1, false, '저장 데이터에 파일 이름이 들어가지 않음');
   const empty = analyze(recs, { start: 0, end: 1 }, index, null);
   assert.equal(empty.empty, true);
 });
@@ -228,4 +229,23 @@ test('zip: 파일 이름이 달라도 내용으로 찾음', { skip: !existsSync(
 test('zip: 시청기록 없음·깨진 zip은 안내 문구', async () => {
   await assert.rejects(parseTakeoutZip(zipBlob('no-history.zip')), /시청기록을 찾지 못했어요/);
   await assert.rejects(parseTakeoutZip(zipBlob('broken.zip')), /zip 파일/);
+});
+
+test('최소 표본: 30건 미만이면 부족, 30건 이상이면 충분', () => {
+  assert.equal(hasEnoughSample(29), false);
+  assert.equal(hasEnoughSample(30), true);
+  assert.equal(hasEnoughSample(0), false);
+});
+
+test('미분류 채널 목록에 채널 ID가 함께 담긴다 (DB 구축용 CSV)', () => {
+  const recs = [
+    { time: Date.UTC(2026, 9, 1), channel: '새로운채널', channelId: 'UCaaaaaaaaaaaaaaaaaaaaaa', url: 'v1', title: 't1' },
+    { time: Date.UTC(2026, 9, 2), channel: '새로운채널', channelId: 'UCaaaaaaaaaaaaaaaaaaaaaa', url: 'v2', title: 't2' },
+    { time: Date.UTC(2026, 9, 3), channel: '아이디없는채널', channelId: null, url: 'v3', title: 't3' },
+  ];
+  const range = dataRange(recs);
+  const r = analyze(recs, resolvePeriod('all', range), buildChannelIndex({ channels: [] }), null);
+  const byName = Object.fromEntries(r.unclassifiedChannels.map((c) => [c.name, c.channelId]));
+  assert.equal(byName['새로운채널'], 'UCaaaaaaaaaaaaaaaaaaaaaa');
+  assert.equal(byName['아이디없는채널'], '');
 });

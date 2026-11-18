@@ -70,3 +70,7 @@ export const STORAGE_KEYS = {
 };
 
 export const MAX_HISTORY = 20;
+
+// 최소 표본: 선택한 기간의 시청기록(광고·중복 제외)이 이 건수보다 적으면 분석하지 않는다.
+// ⚠ 임시값이다. 팀원들의 실제 시청기록으로 확인한 뒤 조정한다.
+export const MIN_SAMPLE = 30;

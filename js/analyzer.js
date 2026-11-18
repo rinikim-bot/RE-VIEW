@@ -1,6 +1,6 @@
 // 분석 로직: 화면(UI)과 분리된 순수 함수들. Node 테스트에서 그대로 실행된다.
 import {
-  CONTENT_TYPES, UNCLASSIFIED, TYPE_BY_ID, TYPE_NOUN, HHI_LEVELS, UNCLASSIFIED_WARN_PCT, PERIOD_OPTIONS,
+  CONTENT_TYPES, UNCLASSIFIED, TYPE_BY_ID, TYPE_NOUN, HHI_LEVELS, UNCLASSIFIED_WARN_PCT, PERIOD_OPTIONS, MIN_SAMPLE,
 } from './config.js';
 
 // ---------- 채널 DB ----------
@@ -218,11 +218,16 @@ export function analyze(prepared, period, index, prediction) {
   const types = computeTypes(inPeriod, index);
   const conc = computeConcentration(inPeriod);
   const channelTypeMap = new Map();
+  const channelIdMap = new Map();
   for (const r of inPeriod) {
     if (r.channel && !channelTypeMap.has(r.channel)) channelTypeMap.set(r.channel, classifyChannel(r.channel, r.channelId, index).type);
+    if (r.channel && r.channelId && !channelIdMap.has(r.channel)) channelIdMap.set(r.channel, r.channelId);
   }
   conc.channels.forEach((c) => { c.type = channelTypeMap.get(c.name) || UNCLASSIFIED.id; });
-  const unclassifiedChannels = conc.channels.filter((c) => c.type === UNCLASSIFIED.id);
+  // 팀이 DB에 채널을 추가할 수 있도록 미분류 채널에는 채널 ID(있을 때)를 함께 담는다.
+  const unclassifiedChannels = conc.channels
+    .filter((c) => c.type === UNCLASSIFIED.id)
+    .map((c) => ({ ...c, channelId: channelIdMap.get(c.name) || '' }));
   return {
     empty: false,
     period,
@@ -241,7 +246,7 @@ export function analyze(prepared, period, index, prediction) {
 
 // ---------- 저장용 요약과 이전 결과 비교 ----------
 
-export function toHistoryEntry(result, prediction, meta = {}) {
+export function toHistoryEntry(result, prediction) {
   return {
     id: `${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 7)}`,
     savedAt: Date.now(),
@@ -253,7 +258,6 @@ export function toHistoryEntry(result, prediction, meta = {}) {
     cr3: result.concentration.cr3,
     unclassifiedPct: result.types.unclassifiedPct,
     prediction: prediction && prediction.primary ? { primary: prediction.primary, secondary: prediction.secondary || [] } : null,
-    fileName: meta.fileName || null,
   };
 }
 
@@ -271,4 +275,10 @@ export function compareEntries(prev, curr) {
     representativeChanged: prev.representative !== curr.representative,
     biggest: biggest && Math.abs(biggest.diff) >= 0.05 ? biggest : null,
   };
+}
+
+// ---------- 최소 표본 ----------
+
+export function hasEnoughSample(count) {
+  return count >= MIN_SAMPLE;
 }

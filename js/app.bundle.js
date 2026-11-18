@@ -60,6 +60,7 @@
     history: "infodiet.history.v1"
   };
   var MAX_HISTORY = 20;
+  var MIN_SAMPLE = 30;
 
   // js/parser.js
   var ParseError = class extends Error {
@@ -493,13 +494,15 @@
     const types = computeTypes(inPeriod, index);
     const conc = computeConcentration(inPeriod);
     const channelTypeMap = /* @__PURE__ */ new Map();
+    const channelIdMap = /* @__PURE__ */ new Map();
     for (const r of inPeriod) {
       if (r.channel && !channelTypeMap.has(r.channel)) channelTypeMap.set(r.channel, classifyChannel(r.channel, r.channelId, index).type);
+      if (r.channel && r.channelId && !channelIdMap.has(r.channel)) channelIdMap.set(r.channel, r.channelId);
     }
     conc.channels.forEach((c) => {
       c.type = channelTypeMap.get(c.name) || UNCLASSIFIED.id;
     });
-    const unclassifiedChannels = conc.channels.filter((c) => c.type === UNCLASSIFIED.id);
+    const unclassifiedChannels = conc.channels.filter((c) => c.type === UNCLASSIFIED.id).map((c) => ({ ...c, channelId: channelIdMap.get(c.name) || "" }));
     return {
       empty: false,
       period,
@@ -515,7 +518,7 @@
       musicHeaderCount: inPeriod.filter((r) => r.header === "YouTube Music").length
     };
   }
-  function toHistoryEntry(result, prediction, meta = {}) {
+  function toHistoryEntry(result, prediction) {
     return {
       id: `${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 7)}`,
       savedAt: Date.now(),
@@ -526,8 +529,7 @@
       hhi: result.concentration.hhi,
       cr3: result.concentration.cr3,
       unclassifiedPct: result.types.unclassifiedPct,
-      prediction: prediction && prediction.primary ? { primary: prediction.primary, secondary: prediction.secondary || [] } : null,
-      fileName: meta.fileName || null
+      prediction: prediction && prediction.primary ? { primary: prediction.primary, secondary: prediction.secondary || [] } : null
     };
   }
   function compareEntries(prev, curr) {
@@ -544,6 +546,9 @@
       representativeChanged: prev.representative !== curr.representative,
       biggest: biggest && Math.abs(biggest.diff) >= 0.05 ? biggest : null
     };
+  }
+  function hasEnoughSample(count) {
+    return count >= MIN_SAMPLE;
   }
 
   // js/storage.js
@@ -1004,6 +1009,7 @@
   }
   function render() {
     const route = currentRoute();
+    closeConsent();
     destroyAll();
     document.querySelectorAll(".nav a").forEach((a) => {
       const target = a.getAttribute("href").slice(1);
@@ -1242,6 +1248,69 @@
       if (f) handleFile(f);
     });
     renderUploadStatus();
+    ensureConsent();
+  }
+  var CONSENT_KEY = "infodiet.consent.v1";
+  var consentMemory = false;
+  function hasConsent() {
+    if (consentMemory) return true;
+    try {
+      return sessionStorage.getItem(CONSENT_KEY) === "1";
+    } catch (e) {
+      return false;
+    }
+  }
+  function saveConsent() {
+    consentMemory = true;
+    try {
+      sessionStorage.setItem(CONSENT_KEY, "1");
+    } catch (e) {
+    }
+  }
+  function closeConsent() {
+    const m = document.getElementById("consent");
+    if (m) m.remove();
+    document.removeEventListener("keydown", onConsentKey);
+  }
+  function onConsentKey(e) {
+    if (e.key === "Escape") {
+      closeConsent();
+      go("home");
+    }
+  }
+  function ensureConsent() {
+    if (hasConsent() || document.getElementById("consent")) return;
+    const modal = document.createElement("div");
+    modal.id = "consent";
+    modal.className = "modal-bg";
+    modal.innerHTML = `
+    <div class="modal" role="dialog" aria-modal="true" aria-labelledby="consentTitle">
+      <h2 id="consentTitle">\uC2DC\uC791\uD558\uAE30 \uC804\uC5D0 \uD655\uC778\uD574 \uC8FC\uC138\uC694</h2>
+      <ul class="consent-list">
+        <li>\uC5C5\uB85C\uB4DC\uD55C \uC2DC\uCCAD\uAE30\uB85D \uD30C\uC77C\uC740 <b>\uC774 \uBE0C\uB77C\uC6B0\uC800 \uC548\uC5D0\uC11C\uB9CC</b> \uBD84\uC11D\uB418\uBA70, \uC11C\uBC84\uB85C \uC804\uC1A1\uB418\uAC70\uB098 \uC800\uC7A5\uB418\uC9C0 \uC54A\uC544\uC694.</li>
+        <li>\uBD84\uC11D\uC5D0\uB294 <b>\uC2DC\uCCAD\uC77C\uC2DC\uC640 \uCC44\uB110\uBA85(\uCC44\uB110 ID)</b>\uC744 \uC0AC\uC6A9\uD574\uC694. \uAC19\uC740 \uC2DC\uAC01\uC758 \uC911\uBCF5 \uAE30\uB85D\uC744 \uAC78\uB7EC\uB0B4\uAE30 \uC704\uD574 \uC601\uC0C1 \uC8FC\uC18C(\uC5C6\uC73C\uBA74 \uC81C\uBAA9)\uB97C \uBD84\uC11D \uC911\uC5D0\uB9CC \uC784\uC2DC\uB85C \uC4F0\uBA70, \uC720\uD615 \uBD84\uB958\uC5D0\uB294 \uC4F0\uC9C0 \uC54A\uACE0 \uC800\uC7A5\uD558\uC9C0 \uC54A\uC544\uC694.</li>
+        <li>\uBD84\uC11D \uACB0\uACFC\uB294 \uBCF8\uC778\uC5D0\uAC8C\uB9CC \uBCF4\uC774\uBA70 \uD300\uC774\uB098 \uC81C3\uC790\uC5D0\uAC8C \uC81C\uACF5\uB418\uC9C0 \uC54A\uC544\uC694.</li>
+        <li>\u2018\uC774 \uACB0\uACFC \uC800\uC7A5\uD558\uAE30\u2019\uB97C \uC9C1\uC811 \uB204\uB978 \uACBD\uC6B0\uC5D0\uB9CC \uBD84\uC11D \uAE30\uAC04, \uC720\uD615\uBCC4 \uBE44\uC911, HHI\xB7CR3 \uC694\uC57D\uC774 \uC774 \uBE0C\uB77C\uC6B0\uC800\uC5D0 \uC800\uC7A5\uB3FC\uC694.</li>
+        <li>\uC815\uCE58\uC801 \uC131\uD5A5\uC774\uB098 \uCC44\uB110\uC758 \uD638\uBD88\uD638\xB7\uC2E0\uB8B0\uC131\uC740 \uD310\uB2E8\uD558\uC9C0 \uC54A\uACE0, \uC2DC\uCCAD \uD328\uD134 \uC9C0\uD45C\uB9CC \uBCF4\uC5EC\uC918\uC694.</li>
+      </ul>
+      <div class="btn-row modal-actions">
+        <button class="btn" type="button" id="consentCancel">\uCDE8\uC18C</button>
+        <button class="btn primary" type="button" id="consentOk">\uB3D9\uC758\uD558\uACE0 \uACC4\uC18D\uD558\uAE30</button>
+      </div>
+    </div>`;
+    document.body.appendChild(modal);
+    document.getElementById("consentCancel").addEventListener("click", () => {
+      closeConsent();
+      go("home");
+    });
+    document.getElementById("consentOk").addEventListener("click", () => {
+      saveConsent();
+      closeConsent();
+      const d = document.getElementById("drop");
+      if (d) d.focus();
+    });
+    document.addEventListener("keydown", onConsentKey);
+    document.getElementById("consentOk").focus();
   }
   async function handleFile(file) {
     state.uploadError = null;
@@ -1325,8 +1394,9 @@
         return;
       }
       const cnt = filterByPeriod(u.prepared.records, p).length;
-      el.innerHTML = cnt ? `\uC120\uD0DD\uD55C \uAE30\uAC04(${ymd(p.start)} ~ ${ymd(p.end)})\uC758 \uC2DC\uCCAD\uAE30\uB85D <b class="num">${n0(cnt)}\uAC74</b>\uC744 \uBD84\uC11D\uD574\uC694.` : `<span class="notice warn" style="display:block">\uC120\uD0DD\uD55C \uAE30\uAC04(${ymd(p.start)} ~ ${ymd(p.end)})\uC5D0\uB294 \uC2DC\uCCAD\uAE30\uB85D\uC774 \uC5C6\uC5B4\uC694. \uAE30\uAC04\uC744 \uB113\uD600 \uC8FC\uC138\uC694.</span>`;
-      btn.disabled = !cnt || !!state.dbError;
+      const enough = hasEnoughSample(cnt);
+      el.innerHTML = enough ? `\uC120\uD0DD\uD55C \uAE30\uAC04(${ymd(p.start)} ~ ${ymd(p.end)})\uC758 \uC2DC\uCCAD\uAE30\uB85D <b class="num">${n0(cnt)}\uAC74</b>\uC744 \uBD84\uC11D\uD574\uC694.` : cnt ? `<span class="notice warn" style="display:block"><strong>\uBD84\uC11D \uB370\uC774\uD130\uAC00 \uBD80\uC871\uD569\uB2C8\uB2E4.</strong> \uC120\uD0DD\uD55C \uAE30\uAC04(${ymd(p.start)} ~ ${ymd(p.end)})\uC758 \uC2DC\uCCAD\uAE30\uB85D\uC774 ${n0(cnt)}\uAC74\uC774\uC5D0\uC694. \uACB0\uACFC\uC758 \uC2E0\uB8B0\uB3C4\uB97C \uC704\uD574 \uCD5C\uC18C ${n0(MIN_SAMPLE)}\uAC74\uC774 \uD544\uC694\uD574\uC694. \uAE30\uAC04\uC744 \uB113\uD600 \uC8FC\uC138\uC694.</span>` : `<span class="notice warn" style="display:block">\uC120\uD0DD\uD55C \uAE30\uAC04(${ymd(p.start)} ~ ${ymd(p.end)})\uC5D0\uB294 \uC2DC\uCCAD\uAE30\uB85D\uC774 \uC5C6\uC5B4\uC694. \uAE30\uAC04\uC744 \uB113\uD600 \uC8FC\uC138\uC694.</span>`;
+      btn.disabled = !enough || !!state.dbError;
     };
     bindPeriod("up", update);
     update();
@@ -1378,6 +1448,11 @@
     set("period", inPeriod.length ? "done" : "fail", `${period.label} \xB7 ${n0(inPeriod.length)}\uAC74`);
     if (!inPeriod.length) {
       app.insertAdjacentHTML("beforeend", '<p class="notice warn">\uC120\uD0DD\uD55C \uAE30\uAC04\uC5D0 \uC2DC\uCCAD\uAE30\uB85D\uC774 \uC5C6\uC5B4\uC694. <a href="#upload">\uAE30\uAC04\uC744 \uBC14\uAFD4 \uC8FC\uC138\uC694.</a></p>');
+      return;
+    }
+    if (!state.upload.isSample && !hasEnoughSample(inPeriod.length)) {
+      set("period", "fail", `${period.label} \xB7 ${n0(inPeriod.length)}\uAC74`);
+      app.insertAdjacentHTML("beforeend", `<div class="notice warn" role="alert"><strong>\uBD84\uC11D \uB370\uC774\uD130\uAC00 \uBD80\uC871\uD569\uB2C8\uB2E4.</strong> \uC120\uD0DD\uD55C \uAE30\uAC04\uC758 \uC2DC\uCCAD\uAE30\uB85D\uC774 ${n0(inPeriod.length)}\uAC74\uC774\uC5D0\uC694. \uACB0\uACFC\uC758 \uC2E0\uB8B0\uB3C4\uB97C \uC704\uD574 \uCD5C\uC18C ${n0(MIN_SAMPLE)}\uAC74\uC774 \uD544\uC694\uD574\uC694.<div class="btn-row" style="margin-top:10px"><a class="btn" href="#upload">\uAE30\uAC04 \uBC14\uAFB8\uAE30</a><a class="btn" href="#home">\uBA54\uC778\uC73C\uB85C</a></div></div>`);
       return;
     }
     set("db", "run");
@@ -1589,7 +1664,7 @@
     });
     const save = document.getElementById("saveBtn");
     save.addEventListener("click", () => {
-      const entry = toHistoryEntry(r, activePrediction(), { fileName: state.upload.fileName });
+      const entry = toHistoryEntry(r, activePrediction());
       if (storage.addHistory(entry)) {
         state.savedId = entry.id;
         toast("\uC774 \uBE0C\uB77C\uC6B0\uC800\uC5D0 \uACB0\uACFC\uB97C \uC800\uC7A5\uD588\uC5B4\uC694.");
@@ -1629,7 +1704,7 @@
     const terms = c.channels.slice(0, 5).map((x) => `${p1(x.pct)}\xB2`);
     const restSum = c.channels.slice(5).reduce((s, x) => s + x.pct * x.pct, 0);
     const ms = t.matchStats;
-    const csv = ["channel_name,watch_count,type", ...r.unclassifiedChannels.map((x) => `"${x.name.replace(/"/g, '""')}",${x.count},`)].join("\n");
+    const csv = ["channel_name,channel_id,watch_count,type", ...r.unclassifiedChannels.map((x) => `"${x.name.replace(/"/g, '""')}",${x.channelId || ""},${x.count},`)].join("\n");
     app.innerHTML = `
   ${sampleBanner()}
   <header class="stack">
@@ -1681,7 +1756,7 @@
 
   <section class="card stack">
     <h2>\uC720\uD615 \uBBF8\uBD84\uB958 \uCC44\uB110 <span class="pill">${n0(r.unclassifiedChannels.length)}\uAC1C</span></h2>
-    <p class="small">\uD300\uC5D0\uC11C \uCC44\uB110 DB(<code>data/channel-types.json</code>)\uC5D0 \uCD94\uAC00\uD560 \uC218 \uC788\uB3C4\uB85D CSV\uB85C \uC815\uB9AC\uD588\uC5B4\uC694. <code>type</code> \uC5F4\uC5D0 vlog, entertain, game, beauty, knowledge, music, sports, news \uC911 \uD558\uB098\uB97C \uCC44\uC6CC \uB123\uC73C\uBA74 \uB3FC\uC694.</p>
+    <p class="small">\uD300\uC5D0\uC11C \uCC44\uB110 DB(<code>data/channel-types.json</code>)\uC5D0 \uCD94\uAC00\uD560 \uC218 \uC788\uB3C4\uB85D CSV\uB85C \uC815\uB9AC\uD588\uC5B4\uC694. <code>type</code> \uC5F4\uC5D0 vlog, entertain, game, beauty, knowledge, music, sports, news \uC911 \uD558\uB098\uB97C \uCC44\uC6CC \uB123\uC73C\uBA74 \uB3FC\uC694. <code>channel_id</code>(UC\uB85C \uC2DC\uC791)\uAC00 \uC788\uB294 \uCC44\uB110\uC740 DB\uC5D0 ID\uAE4C\uC9C0 \uB123\uC73C\uBA74 \uCC44\uB110 \uC774\uB984\uC774 \uBC14\uB00C\uC5B4\uB3C4 \uB9E4\uCE6D\uB3FC\uC694.</p>
     <textarea class="copybox" id="csvBox" readonly aria-label="\uBBF8\uBD84\uB958 \uCC44\uB110 CSV">${esc(csv)}</textarea>
     <div class="btn-row"><button class="btn small" id="copyCsv" type="button">CSV \uBCF5\uC0AC</button></div>
   </section>`;
@@ -1711,7 +1786,7 @@
   function viewHistory() {
     const hist = storage.getHistory();
     const canStore = storage.available();
-    const current = state.result && !state.result.empty && !state.upload.isSample && !state.savedId ? { ...toHistoryEntry(state.result, activePrediction(), { fileName: state.upload.fileName }), id: "__current__", current: true } : null;
+    const current = state.result && !state.result.empty && !state.upload.isSample && !state.savedId ? { ...toHistoryEntry(state.result, activePrediction()), id: "__current__", current: true } : null;
     const entries = current ? [current, ...hist] : hist;
     const item = (e, i) => `
     <div class="history-item">
@@ -1740,7 +1815,7 @@
     <p class="small">\uC774 \uC11C\uBE44\uC2A4\uC5D0\uB294 \uB85C\uADF8\uC778\uACFC \uC11C\uBC84\uAC00 \uC5C6\uC5B4\uC694. \uC544\uB798 \uC815\uBCF4\uB9CC <b>\uC9C0\uAE08 \uC4F0\uACE0 \uC788\uB294 \uBE0C\uB77C\uC6B0\uC800\uC758 LocalStorage</b>\uC5D0 \uC800\uC7A5\uB3FC\uC694.</p>
     <ul class="small" style="margin:0;padding-left:18px;display:grid;gap:2px">
       <li><code>${STORAGE_KEYS.prediction}</code>: \uB0B4\uAC00 \uACE0\uB978 \uC608\uC0C1 \uC720\uD615</li>
-      <li><code>${STORAGE_KEYS.history}</code>: \uC800\uC7A5\uD55C \uACB0\uACFC(\uBD84\uC11D \uB0A0\uC9DC, \uAE30\uAC04, \uC720\uD615\uBCC4 \uAC74\uC218\xB7\uBE44\uC911, HHI, CR3, \uB300\uD45C \uC720\uD615, \uADF8\uB54C\uC758 \uC608\uC0C1, \uD30C\uC77C \uC774\uB984) \xB7 \uCD5C\uB300 20\uAC1C</li>
+      <li><code>${STORAGE_KEYS.history}</code>: \uC800\uC7A5\uD55C \uACB0\uACFC(\uBD84\uC11D \uB0A0\uC9DC, \uAE30\uAC04, \uC720\uD615\uBCC4 \uAC74\uC218\xB7\uBE44\uC911, HHI, CR3, \uB300\uD45C \uC720\uD615, \uADF8\uB54C\uC758 \uC608\uC0C1) \xB7 \uCD5C\uB300 20\uAC1C</li>
     </ul>
     <p class="small">\uC6D0\uBCF8 \uC2DC\uCCAD\uAE30\uB85D \uD30C\uC77C, \uC601\uC0C1 \uC81C\uBAA9, \uCC44\uB110\uBA85\uC740 \uC800\uC7A5\uD558\uC9C0 \uC54A\uC544\uC694. \uBE0C\uB77C\uC6B0\uC800 \uB370\uC774\uD130\uB97C \uC9C0\uC6B0\uAC70\uB098 \uB2E4\uB978 \uAE30\uAE30\xB7\uBE0C\uB77C\uC6B0\uC800\uB97C \uC4F0\uBA74 \uC800\uC7A5\uD55C \uACB0\uACFC\uB97C \uB418\uC0B4\uB9B4 \uC218 \uC5C6\uC5B4\uC694.</p>
     <div class="btn-row">
