@@ -1,0 +1,32 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>정보편식 진단기</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<meta name="description" content="유튜브 시청기록으로 콘텐츠 유형 비중과 채널 집중도를 확인하고, 내가 생각한 시청 습관과 비교해 보는 서비스">
+<link rel="stylesheet" href="./css/style.css">
+</head>
+<body>
+<header class="topbar">
+  <div class="topbar-inner">
+    <a class="brand" href="#home"><span class="brand-mark" aria-hidden="true">편</span><span class="brand-name">정보편식 진단기</span></a>
+    <nav class="nav" aria-label="주요 메뉴">
+      <a href="#predict">예상</a>
+      <a href="#upload">업로드</a>
+      <a href="#result">결과</a>
+      <a href="#history">이전 결과</a>
+    </nav>
+  </div>
+</header>
+<main class="wrap" id="app" aria-live="polite"><p class="muted">불러오는 중…</p></main>
+<footer class="site"><div class="wrap">
+  <span>정보편식 진단기 · 유튜브 시청 패턴 및 출처 편중도 진단</span>
+  <span>시청기록 파일은 브라우저 안에서만 분석돼요. 결과는 평가가 아닌 참고용이에요.</span>
+</div></footer>
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.js"></script>
+<script src="./data/channel-types.js"></script>
+<script src="./js/app.bundle.js"></script>
+</body>
+</html>
