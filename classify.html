@@ -1,0 +1,433 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="robots" content="noindex">
+<title>RE:VIEW 팀 도구 · 미분류 채널 분류</title>
+<style>
+@font-face { font-family: 'Pretendard Variable'; src: url('../asset/fonts/PretendardVariable.woff2') format('woff2-variations'); font-weight: 45 920; font-display: swap; }
+:root {
+  --bg: #f3f5f8; --surface: #fff; --surface-2: #f2f4f7; --ink: #161b26; --muted: #5f6b7a; --line: #e4e8ee;
+  --accent: #3461f5; --accent-soft: #eaf0ff; --warn: #c2410c; --warn-soft: #fff1eb; --ok: #0f8a5f; --ok-soft: #e7f7ef;
+  --font: 'Pretendard Variable', Pretendard, -apple-system, 'Apple SD Gothic Neo', 'Malgun Gothic', 'Noto Sans KR', sans-serif;
+}
+* { box-sizing: border-box; }
+body { margin: 0; background: var(--bg); color: var(--ink); font-family: var(--font); font-size: 15px; line-height: 1.6; letter-spacing: -0.01em; }
+.wrap { max-width: 1080px; margin: 0 auto; padding: 28px max(16px, env(safe-area-inset-left)) 64px; display: grid; gap: 16px; }
+h1 { font-size: 28px; margin: 0; letter-spacing: -0.03em; }
+h2 { font-size: 18px; margin: 0; display: flex; gap: 8px; align-items: center; }
+h2 .n { width: 26px; height: 26px; border-radius: 13px; background: var(--accent); color: #fff; font-size: 13px; display: inline-flex; align-items: center; justify-content: center; }
+.card { background: var(--surface); border-radius: 20px; padding: 22px; display: grid; gap: 12px; min-width: 0; }
+.muted { color: var(--muted); } .small { font-size: 13px; }
+.notice { border-radius: 14px; padding: 12px 14px; font-size: 14px; background: var(--warn-soft); color: #7c2d12; }
+.notice.ok { background: var(--ok-soft); color: #065f46; }
+.notice.info { background: var(--accent-soft); color: #1e3a8a; }
+label { font-weight: 600; font-size: 14px; }
+input[type=password], input[type=text], select, textarea { font: inherit; border: 1px solid var(--line); border-radius: 12px; padding: 10px 12px; background: #fff; color: var(--ink); width: 100%; min-width: 0; }
+textarea { min-height: 150px; font-family: ui-monospace, Menlo, Consolas, monospace; font-size: 12px; }
+.row { display: flex; gap: 10px; flex-wrap: wrap; align-items: center; }
+.row > * { flex: none; }
+.row .grow { flex: 1 1 240px; }
+button { font: inherit; font-weight: 700; border: 0; border-radius: 12px; padding: 10px 16px; min-height: 44px; cursor: pointer; background: var(--surface-2); color: var(--ink); }
+button.primary { background: var(--accent); color: #fff; }
+button:disabled { opacity: .45; cursor: not-allowed; }
+.stats { display: flex; gap: 10px; flex-wrap: wrap; }
+.stat { background: var(--surface-2); border-radius: 12px; padding: 10px 14px; min-width: 120px; }
+.stat b { display: block; font-size: 20px; }
+progress { width: 100%; height: 12px; accent-color: var(--accent); }
+.table-wrap { overflow-x: auto; border: 1px solid var(--line); border-radius: 14px; max-height: 560px; overflow-y: auto; }
+table { border-collapse: collapse; width: 100%; font-size: 13px; }
+th, td { padding: 8px 10px; border-bottom: 1px solid var(--line); text-align: left; vertical-align: top; }
+th { position: sticky; top: 0; background: var(--surface-2); z-index: 1; white-space: nowrap; }
+td.titles { color: var(--muted); max-width: 320px; }
+td select { padding: 6px 8px; min-width: 130px; }
+.conf { display: inline-block; border-radius: 999px; padding: 1px 8px; font-size: 12px; font-weight: 700; }
+.conf.high { background: var(--ok-soft); color: var(--ok); } .conf.medium { background: var(--accent-soft); color: var(--accent); }
+.conf.low, .conf.unknown { background: var(--warn-soft); color: var(--warn); }
+ol.steps { margin: 0; padding-left: 20px; display: grid; gap: 4px; }
+code { background: var(--surface-2); padding: 1px 5px; border-radius: 6px; font-size: 13px; }
+a { color: var(--accent); }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header style="display:grid;gap:6px">
+    <p class="small muted" style="margin:0;font-weight:700;color:var(--accent)">RE:VIEW 팀 전용 도구</p>
+    <h1>미분류 채널 분류 도구</h1>
+    <p class="muted" style="margin:0">팀원들의 미분류 채널 목록을 Gemini로 한 번에 분류하고, 사람이 검수한 뒤 채널 DB 파일로 만들어요.</p>
+  </header>
+
+  <p class="notice"><b>꼭 읽어 주세요.</b> 무료 Gemini API에 보낸 내용은 구글이 서비스 개선에 쓸 수 있어요. 그래서 이 도구에는 <b>팀원 본인의 시청기록에서 나온 목록만</b> 넣어 주세요. 사이트 사용자의 기록은 넣지 않아요. API 키는 이 페이지를 닫으면 사라지고, 어디에도 저장되지 않아요.</p>
+
+  <section class="card">
+    <h2><span class="n">1</span>API 키 넣기</h2>
+    <p class="small muted" style="margin:0"><a href="https://aistudio.google.com/apikey" target="_blank" rel="noopener noreferrer">Google AI Studio</a>에서 무료 API 키를 만든 뒤 붙여 넣으세요.</p>
+    <div class="row">
+      <input class="grow" type="password" id="apiKey" placeholder="AIza로 시작하는 키" autocomplete="off" aria-label="Gemini API 키">
+      <button id="loadModels" type="button">모델 불러오기</button>
+    </div>
+    <div class="row">
+      <label for="model">모델</label>
+      <select id="model" class="grow"><option value="">먼저 ‘모델 불러오기’를 눌러 주세요</option></select>
+      <label for="batch">한 번에</label>
+      <select id="batch"><option>30</option><option selected>50</option><option>80</option></select>
+    </div>
+    <p class="small muted" style="margin:0" id="modelNote">빠르고 무료 한도가 넉넉한 Flash-Lite 계열을 먼저 골라 두어요.</p>
+  </section>
+
+  <section class="card">
+    <h2><span class="n">2</span>미분류 채널 목록 붙여 넣기</h2>
+    <p class="small muted" style="margin:0">사이트의 <b>상세 분석 → 미분류 채널 CSV 복사</b>로 복사한 내용을 붙여 넣으세요. 여러 팀원의 목록을 이어서 붙여 넣어도 돼요. 같은 채널은 하나로 합치고, 이미 채널 DB에 있는 채널은 빼요.</p>
+    <textarea id="csvIn" aria-label="미분류 채널 CSV" placeholder="channel_name,channel_id,watch_count,sample_titles,type&#10;&quot;채널 이름&quot;,UC...,12,&quot;영상 제목 1 | 영상 제목 2&quot;,"></textarea>
+    <div class="row"><button class="primary" id="parseBtn" type="button">목록 정리하기</button><span class="small muted" id="dbInfo"></span></div>
+    <div class="stats" id="stats" hidden></div>
+  </section>
+
+  <section class="card">
+    <h2><span class="n">3</span>Gemini로 분류하기</h2>
+    <p class="small muted" style="margin:0">많이 본 채널부터 묶어서 물어봐요. 무료 한도에 걸리면 잠시 기다렸다가 이어서 해요. 창을 닫아도 분류 결과는 이 브라우저에 남아 있어서, 다음에 같은 목록을 넣으면 이어서 할 수 있어요.</p>
+    <div class="row"><button class="primary" id="runBtn" type="button" disabled>분류 시작</button><button id="stopBtn" type="button" disabled>멈추기</button><button id="resetBtn" type="button">저장된 분류 결과 지우기</button></div>
+    <progress id="prog" value="0" max="1" hidden></progress>
+    <p class="small" id="runMsg" style="margin:0" role="status"></p>
+  </section>
+
+  <section class="card">
+    <h2><span class="n">4</span>검수하기</h2>
+    <p class="small muted" style="margin:0">AI 답은 틀릴 수 있어요. 유형이 틀렸으면 고치고, 확실하지 않은 채널은 체크를 빼 주세요. 체크된 채널만 DB에 들어가요. 확신도가 <b>낮음</b>이거나 <b>모름</b>인 채널은 처음부터 체크가 빠져 있어요.</p>
+    <div class="row">
+      <label for="filter">보기</label>
+      <select id="filter"><option value="all">전체</option><option value="todo">확인 필요(낮음·모름)</option><option value="checked">DB에 넣을 것</option><option value="pending">아직 분류 안 됨</option></select>
+      <span class="small muted" id="reviewCount"></span>
+    </div>
+    <div class="table-wrap"><table>
+      <thead><tr><th>넣기</th><th>채널</th><th>본 횟수</th><th>본 영상 제목</th><th>유형</th><th>확신도</th><th>AI 메모</th></tr></thead>
+      <tbody id="tbody"><tr><td colspan="7" class="muted">아직 목록이 없어요.</td></tr></tbody>
+    </table></div>
+  </section>
+
+  <section class="card">
+    <h2><span class="n">5</span>채널 DB 파일 만들기</h2>
+    <p class="small muted" style="margin:0">체크한 채널을 지금 채널 DB에 더한 새 파일 두 개를 내려받아요. GitHub의 <code>data</code> 폴더에 있는 같은 이름의 파일 두 개를 이 파일로 바꿔 올리면 사이트에 바로 반영돼요.</p>
+    <ol class="steps small">
+      <li><code>channel-types.json</code>: 채널 DB 원본</li>
+      <li><code>channel-types.js</code>: 같은 내용 (index.html을 더블클릭해서 열 때 필요)</li>
+    </ol>
+    <div class="row"><button class="primary" id="exportBtn" type="button" disabled>DB 파일 2개 내려받기</button><button id="csvBtn" type="button" disabled>검수 결과 CSV 내려받기</button></div>
+    <p class="small" id="exportMsg" style="margin:0" role="status"></p>
+  </section>
+</div>
+
+<script src="../data/channel-types.js"></script>
+<script>
+(function () {
+  'use strict';
+  const TYPES = [
+    { id: 'vlog', label: '브이로그·일상형' }, { id: 'entertain', label: '엔터테인먼트형' }, { id: 'game', label: '게임형' },
+    { id: 'beauty', label: '뷰티·패션형' }, { id: 'knowledge', label: '지식·교육형' }, { id: 'music', label: '음악형' },
+    { id: 'sports', label: '스포츠형' }, { id: 'news', label: '뉴스·시사형' },
+  ];
+  const TYPE_IDS = TYPES.map((t) => t.id);
+  const LABEL = Object.fromEntries(TYPES.map((t) => [t.id, t.label]));
+  const CONF_LABEL = { high: '높음', medium: '보통', low: '낮음', unknown: '모름' };
+  const API = 'https://generativelanguage.googleapis.com/v1beta';
+  const STORE = 'review.classify.results.v1';
+  const $ = (id) => document.getElementById(id);
+  const esc = (s) => String(s ?? '').replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+  const norm = (n) => String(n || '').normalize('NFKC').toLowerCase().replace(/[\s　​]+/g, '').replace(/[^\p{L}\p{N}]+/gu, '');
+  const keyOf = (c) => (c.channelId ? 'id:' + c.channelId : 'nm:' + norm(c.name));
+  const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
+
+  const DB = window.CHANNEL_DB || null;
+  let items = [];          // 정리된 채널 목록
+  let results = loadResults(); // key -> { type, confidence, note, include, edited }
+  let stopFlag = false;
+
+  function loadResults() { try { return JSON.parse(localStorage.getItem(STORE) || '{}'); } catch { return {}; } }
+  function saveResults() { try { localStorage.setItem(STORE, JSON.stringify(results)); } catch { /* 저장 못 해도 계속 */ } }
+
+  // ---------- DB 정보 ----------
+  const known = { ids: new Set(), names: new Set() };
+  if (DB && Array.isArray(DB.channels)) {
+    for (const ch of DB.channels) {
+      if (ch.channelId) known.ids.add(ch.channelId);
+      for (const id of ch.takeoutChannelIds || []) known.ids.add(id);
+      for (const n of [ch.name, ...(ch.aliases || [])]) { const k = norm(n); if (k) known.names.add(k); }
+    }
+    $('dbInfo').textContent = `현재 채널 DB: ${DB.channels.length.toLocaleString('ko-KR')}개 채널 (${DB.updated || '날짜 없음'})`;
+  } else {
+    $('dbInfo').innerHTML = '<span style="color:var(--warn)">채널 DB(data/channel-types.js)를 읽지 못했어요. 이 파일은 프로젝트의 tools 폴더 안에서 열어 주세요.</span>';
+  }
+  const isPattern = (name) => (DB && DB.patterns || []).some((p) => p.suffix && String(name).endsWith(p.suffix));
+
+  // ---------- CSV ----------
+  function parseCSV(text) {
+    const rows = []; let row = []; let cur = ''; let q = false;
+    for (let i = 0; i < text.length; i++) {
+      const ch = text[i];
+      if (q) {
+        if (ch === '"') { if (text[i + 1] === '"') { cur += '"'; i++; } else q = false; }
+        else cur += ch;
+      } else if (ch === '"') q = true;
+      else if (ch === ',') { row.push(cur); cur = ''; }
+      else if (ch === '\n' || ch === '\r') { if (ch === '\r' && text[i + 1] === '\n') i++; row.push(cur); rows.push(row); row = []; cur = ''; }
+      else cur += ch;
+    }
+    if (cur.length || row.length) { row.push(cur); rows.push(row); }
+    return rows.filter((r) => r.some((c) => c.trim() !== ''));
+  }
+
+  $('parseBtn').addEventListener('click', () => {
+    const rows = parseCSV($('csvIn').value);
+    const map = new Map(); let skippedKnown = 0, skippedHeader = 0, skippedPattern = 0;
+    for (const r of rows) {
+      const name = (r[0] || '').trim();
+      if (!name || name === 'channel_name') { skippedHeader++; continue; }
+      const channelId = /^UC[\w-]{20,}$/.test((r[1] || '').trim()) ? r[1].trim() : '';
+      const count = parseInt(r[2], 10) || 0;
+      const titles = (r[3] || '').split('|').map((s) => s.trim()).filter(Boolean);
+      if ((channelId && known.ids.has(channelId)) || known.names.has(norm(name))) { skippedKnown++; continue; }
+      if (isPattern(name)) { skippedPattern++; continue; }
+      const c = { name, channelId, count, titles };
+      const k = keyOf(c);
+      const prev = map.get(k);
+      if (prev) {
+        prev.count += count;
+        for (const t of titles) if (prev.titles.length < 5 && !prev.titles.includes(t)) prev.titles.push(t);
+      } else map.set(k, c);
+    }
+    items = [...map.values()].sort((a, b) => b.count - a.count || a.name.localeCompare(b.name, 'ko'));
+    items.forEach((c) => { c.key = keyOf(c); });
+    const done = items.filter((c) => results[c.key]).length;
+    $('stats').hidden = false;
+    $('stats').innerHTML = [
+      ['분류할 채널', items.length], ['이미 분류해 둔 채널', done], ['이미 DB에 있어 뺀 채널', skippedKnown], ['음악 자동 채널(- Topic) 뺀 수', skippedPattern],
+    ].map(([k, v]) => `<div class="stat"><span class="small muted">${k}</span><b>${v.toLocaleString('ko-KR')}</b></div>`).join('');
+    $('runBtn').disabled = !items.length;
+    renderTable();
+  });
+
+  // ---------- 모델 ----------
+  $('loadModels').addEventListener('click', async () => {
+    const key = $('apiKey').value.trim();
+    if (!key) { $('modelNote').textContent = 'API 키를 먼저 넣어 주세요.'; return; }
+    $('modelNote').textContent = '모델 목록을 불러오는 중…';
+    try {
+      const res = await fetch(`${API}/models?pageSize=200`, { headers: { 'x-goog-api-key': key } });
+      const data = await res.json();
+      if (!res.ok) throw new Error((data.error && data.error.message) || res.status);
+      const models = (data.models || [])
+        .filter((m) => (m.supportedGenerationMethods || []).includes('generateContent'))
+        .map((m) => m.name.replace(/^models\//, ''))
+        .filter((n) => /gemini/.test(n) && !/(tts|image|live|audio|embedding|robotics|transcribe|translate|omni|veo)/.test(n));
+      const score = (n) => (/flash-lite/.test(n) ? 0 : /flash/.test(n) ? 1 : 2) + (/preview|exp/.test(n) ? 0.5 : 0);
+      models.sort((a, b) => score(a) - score(b) || b.localeCompare(a, 'en', { numeric: true }));
+      if (!models.length) throw new Error('쓸 수 있는 모델이 없어요.');
+      $('model').innerHTML = models.map((m) => `<option>${esc(m)}</option>`).join('');
+      $('modelNote').textContent = `${models.length}개 모델을 찾았어요. 맨 위 모델이 이 작업에 알맞아요.`;
+    } catch (e) {
+      $('modelNote').innerHTML = `<span style="color:var(--warn)">모델을 불러오지 못했어요: ${esc(e.message)}. 키가 맞는지 확인해 주세요.</span>`;
+    }
+  });
+
+  // ---------- 분류 ----------
+  function buildPrompt(batch) {
+    const cats = (DB && DB.categorySystem && DB.categorySystem.categories) || TYPES.map((t) => ({ code: t.id, label: t.label, description: '' }));
+    return [
+      '너는 한국 유튜브 채널을 콘텐츠 유형으로 분류하는 도우미야.',
+      '아래 8개 유형 중 채널의 주된 콘텐츠에 가장 맞는 하나를 골라.',
+      ...cats.map((c) => `- ${c.code}: ${c.label} (${c.description || ''})`),
+      '규칙:',
+      '- 채널 이름과 그 채널에서 본 영상 제목만 보고 판단해. 모르는 채널이면 추측하지 말고 type을 "unknown"으로 해.',
+      '- confidence: 확실하면 high, 그럴듯하면 medium, 애매하면 low.',
+      '- note: 판단 근거를 한국어 20자 이내로.',
+      '- 입력의 i 값을 그대로 돌려줘. 모든 항목에 답해.',
+      '입력:',
+      JSON.stringify(batch.map((c, i) => ({ i, name: c.name, titles: c.titles.slice(0, 5) }))),
+    ].join('\n');
+  }
+  const SCHEMA = {
+    type: 'OBJECT',
+    properties: {
+      results: {
+        type: 'ARRAY',
+        items: {
+          type: 'OBJECT',
+          properties: {
+            i: { type: 'INTEGER' },
+            type: { type: 'STRING', enum: [...TYPE_IDS, 'unknown'] },
+            confidence: { type: 'STRING', enum: ['high', 'medium', 'low'] },
+            note: { type: 'STRING' },
+          },
+          required: ['i', 'type', 'confidence'],
+        },
+      },
+    },
+    required: ['results'],
+  };
+
+  async function callGemini(key, model, batch) {
+    const body = {
+      contents: [{ role: 'user', parts: [{ text: buildPrompt(batch) }] }],
+      generationConfig: { responseMimeType: 'application/json', responseSchema: SCHEMA, temperature: 0 },
+    };
+    const res = await fetch(`${API}/models/${encodeURIComponent(model)}:generateContent`, {
+      method: 'POST', headers: { 'Content-Type': 'application/json', 'x-goog-api-key': key }, body: JSON.stringify(body),
+    });
+    const data = await res.json().catch(() => ({}));
+    if (!res.ok) {
+      const err = new Error((data.error && data.error.message) || `HTTP ${res.status}`);
+      err.status = res.status;
+      const retry = ((data.error && data.error.details) || []).find((d) => d.retryDelay);
+      err.retryMs = retry ? Math.ceil(parseFloat(retry.retryDelay) * 1000) : 0;
+      throw err;
+    }
+    const text = (((data.candidates || [])[0] || {}).content || {}).parts?.map((p) => p.text || '').join('') || '';
+    const parsed = JSON.parse(text);
+    return parsed.results || [];
+  }
+
+  $('runBtn').addEventListener('click', async () => {
+    const key = $('apiKey').value.trim(); const model = $('model').value;
+    if (!key || !model) { $('runMsg').textContent = 'API 키를 넣고 모델을 먼저 불러와 주세요.'; return; }
+    const size = parseInt($('batch').value, 10);
+    const todo = items.filter((c) => !results[c.key]);
+    if (!todo.length) { $('runMsg').textContent = '모든 채널을 이미 분류했어요. 4단계에서 검수해 주세요.'; return; }
+    stopFlag = false; $('runBtn').disabled = true; $('stopBtn').disabled = false;
+    const prog = $('prog'); prog.hidden = false; prog.max = items.length;
+    let fails = 0;
+    for (let s = 0; s < todo.length && !stopFlag;) {
+      const batch = todo.slice(s, s + size);
+      prog.value = items.filter((c) => results[c.key]).length;
+      $('runMsg').textContent = `분류 중… ${prog.value.toLocaleString('ko-KR')} / ${items.length.toLocaleString('ko-KR')}`;
+      try {
+        const out = await callGemini(key, model, batch);
+        for (const r of out) {
+          const c = batch[r.i]; if (!c) continue;
+          const type = TYPE_IDS.includes(r.type) ? r.type : 'unknown';
+          const confidence = type === 'unknown' ? 'unknown' : (r.confidence || 'low');
+          results[c.key] = { type, confidence, note: String(r.note || '').slice(0, 40), include: type !== 'unknown' && confidence !== 'low' };
+        }
+        // 답이 빠진 채널은 다음에 ‘분류 시작’을 누르면 다시 물어본다
+        saveResults(); renderTable(); fails = 0; s += size;
+        await sleep(4500); // 무료 한도(분당 요청 수)를 넘지 않게 천천히
+      } catch (e) {
+        fails++;
+        if (e.status === 429) {
+          const wait = Math.max(e.retryMs || 0, 30000);
+          if (/per day|PerDay|daily/i.test(e.message) || fails > 6) {
+            $('runMsg').innerHTML = `<span style="color:var(--warn)">오늘 무료 한도를 다 쓴 것 같아요. 여기까지 결과는 저장해 두었으니 내일 이어서 ‘분류 시작’을 눌러 주세요.</span>`;
+            break;
+          }
+          $('runMsg').textContent = `무료 한도에 걸려서 ${Math.round(wait / 1000)}초 기다렸다 이어서 할게요…`;
+          await sleep(wait);
+        } else if (fails > 3) {
+          $('runMsg').innerHTML = `<span style="color:var(--warn)">계속 실패해서 멈췄어요: ${esc(e.message)}</span>`;
+          break;
+        } else {
+          await sleep(5000);
+        }
+      }
+    }
+    const doneN = items.filter((c) => results[c.key]).length;
+    prog.value = doneN;
+    if (stopFlag) $('runMsg').textContent = `멈췄어요. ${doneN.toLocaleString('ko-KR')}개까지 분류했어요.`;
+    else if (doneN === items.length) $('runMsg').innerHTML = `<span style="color:var(--ok)">${doneN.toLocaleString('ko-KR')}개 채널을 모두 분류했어요. 4단계에서 검수해 주세요.</span>`;
+    $('runBtn').disabled = false; $('stopBtn').disabled = true;
+  });
+  $('stopBtn').addEventListener('click', () => { stopFlag = true; $('stopBtn').disabled = true; });
+  $('resetBtn').addEventListener('click', () => {
+    if ($('resetBtn').dataset.confirm !== '1') { $('resetBtn').dataset.confirm = '1'; $('resetBtn').textContent = '한 번 더 누르면 지워져요'; return; }
+    results = {}; saveResults(); $('resetBtn').dataset.confirm = ''; $('resetBtn').textContent = '저장된 분류 결과 지우기'; renderTable();
+  });
+
+  // ---------- 검수 표 ----------
+  function renderTable() {
+    const f = $('filter').value;
+    const list = items.filter((c) => {
+      const r = results[c.key];
+      if (f === 'todo') return r && (r.confidence === 'low' || r.confidence === 'unknown');
+      if (f === 'checked') return r && r.include;
+      if (f === 'pending') return !r;
+      return true;
+    });
+    const checked = items.filter((c) => results[c.key] && results[c.key].include);
+    const checkedCount = checked.reduce((s, c) => s + c.count, 0);
+    const allCount = items.reduce((s, c) => s + c.count, 0);
+    $('reviewCount').textContent = items.length ? `DB에 넣을 채널 ${checked.length.toLocaleString('ko-KR')}개 · 팀원 기록 기준 미분류 ${allCount ? Math.round((checkedCount / allCount) * 100) : 0}% 해결` : '';
+    $('exportBtn').disabled = !checked.length || !DB;
+    $('csvBtn').disabled = !Object.keys(results).length || !items.length;
+    const shown = list.slice(0, 500);
+    $('tbody').innerHTML = shown.length ? shown.map((c) => {
+      const r = results[c.key];
+      const opts = ['unknown', ...TYPE_IDS].map((t) => `<option value="${t}" ${r && r.type === t ? 'selected' : ''}>${t === 'unknown' ? '모름' : LABEL[t]}</option>`).join('');
+      return `<tr data-k="${esc(c.key)}">
+        <td><input type="checkbox" aria-label="${esc(c.name)} DB에 넣기" ${r && r.include ? 'checked' : ''} ${!r || r.type === 'unknown' ? 'disabled' : ''}></td>
+        <td><b>${esc(c.name)}</b>${c.channelId ? `<br><span class="small muted">${esc(c.channelId)}</span>` : ''}</td>
+        <td>${c.count.toLocaleString('ko-KR')}</td>
+        <td class="titles">${c.titles.map(esc).join('<br>') || '-'}</td>
+        <td>${r ? `<select aria-label="${esc(c.name)} 유형">${opts}</select>` : '<span class="muted">대기</span>'}</td>
+        <td>${r ? `<span class="conf ${r.confidence}">${CONF_LABEL[r.confidence] || r.confidence}${r.edited ? ' · 수정함' : ''}</span>` : ''}</td>
+        <td class="small muted">${r ? esc(r.note) : ''}</td>
+      </tr>`;
+    }).join('') + (list.length > shown.length ? `<tr><td colspan="7" class="muted small">앞의 500개만 보여 줘요. ‘보기’를 바꿔 나눠서 확인하세요.</td></tr>` : '')
+      : '<tr><td colspan="7" class="muted">해당하는 채널이 없어요.</td></tr>';
+  }
+  $('filter').addEventListener('change', renderTable);
+  $('tbody').addEventListener('change', (e) => {
+    const tr = e.target.closest('tr'); if (!tr) return;
+    const r = results[tr.dataset.k]; if (!r) return;
+    if (e.target.type === 'checkbox') r.include = e.target.checked;
+    if (e.target.tagName === 'SELECT') {
+      r.type = e.target.value; r.edited = true;
+      if (r.type === 'unknown') r.include = false; else { r.include = true; if (r.confidence === 'unknown') r.confidence = 'low'; }
+    }
+    saveResults(); renderTable();
+  });
+
+  // ---------- 내보내기 ----------
+  function download(name, text, mime) {
+    const url = URL.createObjectURL(new Blob([text], { type: mime }));
+    const a = document.createElement('a'); a.href = url; a.download = name; document.body.appendChild(a); a.click(); a.remove();
+    setTimeout(() => URL.revokeObjectURL(url), 4000);
+  }
+  const today = () => { const d = new Date(); return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`; };
+
+  $('exportBtn').addEventListener('click', () => {
+    const add = items.filter((c) => results[c.key] && results[c.key].include && TYPE_IDS.includes(results[c.key].type));
+    const db = JSON.parse(JSON.stringify(DB));
+    const seenIds = new Set(known.ids); const seenNames = new Set(known.names);
+    let added = 0;
+    for (const c of add) {
+      const r = results[c.key];
+      if ((c.channelId && seenIds.has(c.channelId)) || seenNames.has(norm(c.name))) continue;
+      const entry = {
+        name: c.name, type: r.type, category8: LABEL[r.type], category8Code: r.type,
+        classificationMethod: r.edited ? 'gemini_then_human' : 'gemini', dataStatus: 'ai_reviewed',
+        contentDescription: r.note || '', classifiedAt: today(),
+      };
+      if (c.channelId) entry.channelId = c.channelId;
+      db.channels.push(entry); added++;
+      if (c.channelId) seenIds.add(c.channelId); seenNames.add(norm(c.name));
+    }
+    db.updated = today();
+    db.note = (db.note || '') + ` [${today()}] Gemini 1차 분류 후 팀 검수한 채널 ${added}개 추가(classificationMethod: gemini / gemini_then_human).`;
+    const json = JSON.stringify(db, null, 2) + '\n';
+    download('channel-types.json', json, 'application/json');
+    setTimeout(() => download('channel-types.js', `// 자동 생성 파일입니다. 직접 고치지 말고 channel-types.json을 고친 뒤 npm run build 를 실행하세요.\nwindow.CHANNEL_DB = ${json.trim()};\n`, 'text/javascript'), 600);
+    $('exportMsg').innerHTML = `<span style="color:var(--ok)">${added}개 채널을 더한 DB 파일 2개를 내려받았어요. 지금 DB ${DB.channels.length.toLocaleString('ko-KR')}개 → 새 DB ${db.channels.length.toLocaleString('ko-KR')}개.</span> GitHub의 <code>data</code> 폴더에 두 파일을 함께 올려 주세요.`;
+  });
+
+  $('csvBtn').addEventListener('click', () => {
+    const q = (v) => `"${String(v ?? '').replace(/"/g, '""')}"`;
+    const lines = ['channel_name,channel_id,watch_count,ai_type,confidence,include,edited,note,sample_titles'];
+    for (const c of items) {
+      const r = results[c.key] || {};
+      lines.push([q(c.name), c.channelId, c.count, r.type || '', r.confidence || '', r.include ? 'Y' : '', r.edited ? 'Y' : '', q(r.note), q(c.titles.join(' | '))].join(','));
+    }
+    download(`미분류-검수-${today()}.csv`, '﻿' + lines.join('\n'), 'text/csv');
+  });
+})();
+</script>
+</body>
+</html>

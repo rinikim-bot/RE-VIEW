@@ -49,6 +49,7 @@ data/channel-types.json 채널별 대표 콘텐츠 유형 DB (원본)
 data/channel-types.js   위 JSON을 스크립트로 바꾼 자동 생성 파일 (더블클릭 실행용)
 js/app.bundle.js        npm run build로 만든 묶음 파일
 asset/fonts/            Pretendard 글꼴 (SIL Open Font License 1.1)
+asset/images/           헤더 로고 (review-logo.png)
 tools/make-db-js.mjs    JSON → JS 변환 스크립트
 tests/                  Node 단위 테스트와 HTML 샘플
 ```
