@@ -3,7 +3,7 @@
 // 채널 이름·영상 제목은 넣지 않는다. 파일은 어디에도 전송되지 않고 내 기기에 저장만 된다.
 
 const W = 1080, H = 1350, PAD = 72;
-const INK = '#151A24', MUTED = '#5B6474', ACCENT = '#3461F5';
+const INK = '#3A3A76', MUTED = '#6F7590', ACCENT = '#7468E8';
 const FONT = '"Pretendard Variable", Pretendard, "Apple SD Gothic Neo", "Malgun Gothic", "Noto Sans KR", sans-serif';
 const f = (weight, size) => `${weight} ${size}px ${FONT}`;
 
@@ -67,7 +67,7 @@ function shadowCard(ctx, x, y, w, h, r, fill, border) {
 
 // 결과 화면과 같은 모양: 회색 바탕, 흰 카드, 유형 색으로 물든 대표 유형 카드
 function draw(ctx, d, img) {
-  const BG = '#F3F5F8', SURFACE = '#FFFFFF', SURFACE2 = '#F2F4F7', LINE = '#E4E8EE';
+  const BG = '#F6F7FB', SURFACE = '#FFFFFF', SURFACE2 = '#F3F4F9', LINE = '#E6E8F2';
   const tc = d.color;
   const [r0, g0, b0] = hexToRgb(tc);
   const light = (0.299 * r0 + 0.587 * g0 + 0.114 * b0) > 150; // 밝은 색(미분류 회색 등)은 글자를 더 진하게
@@ -86,8 +86,8 @@ function draw(ctx, d, img) {
   if (d.isSample) {
     ctx.font = f(800, 22);
     const tw = ctx.measureText('예시 데이터').width + 36;
-    rr(ctx, W - X - tw, 58, tw, 42, 21); ctx.fillStyle = '#F2EEFF'; ctx.fill();
-    ctx.fillStyle = '#7A5AF8'; ctx.textAlign = 'center'; ctx.fillText('예시 데이터', W - X - tw / 2, 87);
+    rr(ctx, W - X - tw, 58, tw, 42, 21); ctx.fillStyle = '#E5F8F4'; ctx.fill();
+    ctx.fillStyle = '#1F9D87'; ctx.textAlign = 'center'; ctx.fillText('예시 데이터', W - X - tw / 2, 87);
   }
 
   // 머리말 (결과 화면의 eyebrow · 제목)

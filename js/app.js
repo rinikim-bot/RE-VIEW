@@ -168,9 +168,9 @@ function startSample() {
 function viewPredict() {
   const pred = state.prediction || { primary: null, secondary: [] };
   const choices = (name, kind) => CONTENT_TYPES.map((t) => `
-    <div class="choice">
+    <div class="choice" style="--tc:${t.color}">
       <input type="${kind}" name="${name}" id="${name}-${t.id}" value="${t.id}">
-      <label for="${name}-${t.id}">${dot(t.color)}${t.label} · ${t.persona}<span class="mark" aria-hidden="true"></span></label>
+      <label for="${name}-${t.id}">${dot(t.color)}${t.label}<span class="mark" aria-hidden="true"></span></label>
     </div>`).join('');
   app.innerHTML = `
   <header class="stack">
@@ -661,7 +661,7 @@ function viewResult() {
             <span class="kicker">내가 가장 많이 보는 분야</span>
             <span class="persona">${rep.persona}</span>
           </div>
-          ${CHARACTER_IMG[rep.id] ? `<img class="persona-char" src="${CHARACTER_IMG[rep.id]}" alt="${rep.persona} 캐릭터" width="360" height="340">` : ''}
+          ${CHARACTER_IMG[rep.id] ? `<img class="persona-char" src="${CHARACTER_IMG[rep.id]}" alt="${rep.persona} 캐릭터" width="360" height="360">` : ''}
         </div>
         <div class="share"><b>${p1(rep.pct)}%</b><span>${rep.label} 콘텐츠 · ${n0(rep.count)}건으로 가장 많아요</span></div>
         ${t.tiedTopIds.length > 1 ? `<p class="small">같은 건수로 공동 1위: ${t.tiedTopIds.map(typeLabel).join(', ')}</p>` : ''}

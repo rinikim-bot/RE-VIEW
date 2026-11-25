@@ -4,12 +4,12 @@
 // persona: 결과 화면에 띄우는 대표 유형 이름 (재미를 위한 표현)
 export const CONTENT_TYPES = [
   { id: 'vlog',      label: '브이로그·일상형',  persona: '남의 하루 창문',       color: '#ff8a3d' },
-  { id: 'entertain', label: '엔터테인먼트형',   persona: '웃음 자판기',   color: '#f0478f' },
-  { id: 'game',      label: '게임형',           persona: '한판 놀이터',         color: '#7b5cff' },
-  { id: 'beauty',    label: '뷰티·패션형',      persona: '스타일 거울',      color: '#ff6b7a' },
-  { id: 'knowledge', label: '지식·교육형',      persona: '호기심 서재',      color: '#13b07e' },
+  { id: 'entertain', label: '엔터테인먼트형',   persona: '웃음 자판기',   color: '#f4506e' },
+  { id: 'game',      label: '게임형',           persona: '한판 놀이터',         color: '#a06bd3' },
+  { id: 'beauty',    label: '뷰티·패션형',      persona: '스타일 거울',      color: '#f77f9f' },
+  { id: 'knowledge', label: '지식·교육형',      persona: '호기심 서재',      color: '#7fc34f' },
   { id: 'music',     label: '음악형',           persona: '귀 속 라디오',      color: '#3b82f6' },
-  { id: 'sports',    label: '스포츠형',         persona: '함성 관중석',      color: '#1fb5c9' },
+  { id: 'sports',    label: '스포츠형',         persona: '함성 관중석',      color: '#f5c518' },
   { id: 'news',      label: '뉴스·시사형',      persona: '세상 안테나',      color: '#64748b' },
 ];
 
