@@ -1,15 +1,17 @@
 // 화면(UI) 담당. 계산은 analyzer.js, 파일 해석은 parser.js가 맡는다.
-import { CONTENT_TYPES, UNCLASSIFIED, TYPE_BY_ID, TYPE_NOUN, HHI_LEVELS, PERIOD_OPTIONS, DEFAULT_PERIOD, STORAGE_KEYS, MIN_SAMPLE } from './config.js';
+import { CONTENT_TYPES, UNCLASSIFIED, TYPE_BY_ID, TYPE_NOUN, HHI_LEVELS, PERIOD_OPTIONS, DEFAULT_PERIOD, STORAGE_KEYS, MIN_SAMPLE, CHARACTER_IMG } from './config.js';
 import { detectAndParse, ParseError } from './parser.js';
 import {
   buildChannelIndex, prepareRecords, dataRange, resolvePeriod, filterByPeriod, analyze,
-  comparePrediction, toHistoryEntry, compareEntries, hasEnoughSample,
+  comparePrediction, toHistoryEntry, compareEntries, hasEnoughSample, buildHeadline,
 } from './analyzer.js';
 import { storage } from './storage.js';
 import { makeSampleRecords, SAMPLE_PREDICTION } from './sample.js';
 import * as charts from './charts.js';
 import { exploreQuery, youtubeSearchUrl } from './explore.js';
 import { parseTakeoutZip } from './zip.js';
+import { makeShareCard, downloadBlob } from './sharecard.js';
+import { CHARACTER_DATA } from './characters-data.js';
 
 // ---------- 상태 ----------
 const state = {
@@ -101,24 +103,24 @@ function viewHome() {
   app.innerHTML = `
   <section class="hero">
     <div class="stack" style="gap:16px">
-      <p class="eyebrow">유튜브 시청 패턴 및 출처 편중도 진단</p>
+      <p class="eyebrow">나의 콘텐츠 소비 패턴 분석</p>
       <h1>내가 보는 유튜브,<br><em>생각한 그대로</em>일까?</h1>
       <p class="lead">평소 많이 본다고 생각하는 유형을 먼저 고르고, 실제 시청기록과 비교해 보세요. 어떤 유형을 얼마나 봤는지, 시청이 몇몇 채널에 몰려 있는지 숫자로 보여드려요.</p>
       <div class="trust-row"><span class="pill">서버 전송 없음</span><span class="pill">로그인 없음</span><span class="pill">계산 근거 공개</span></div>
       <div class="btn-row">
-        <a class="btn primary" href="#predict" id="startBtn">분석 시작하기</a>
+        <a class="btn primary" href="#predict" id="startBtn">내 시청 취향 알아보기</a>
         <button class="btn" id="sampleBtn" type="button">예시 데이터로 둘러보기</button>
         ${hist.length ? `<a class="btn" href="#history">이전 결과 ${hist.length}개</a>` : ''}
       </div>
     </div>
     <div class="label-card" aria-label="결과 예시 미리보기">
       <div class="example-tag">결과 예시 · 가상 데이터</div>
-      <div class="label-title">내 시청 구성</div>
-      <div class="label-meta"><span>총 시청기록 248건 기준</span><span>최근 6개월</span></div>
+      <div class="label-title">내가 보는 콘텐츠 구성</div>
+      <div class="label-meta"><span>전체 248건 기준</span><span>최근 6개월</span></div>
       <div class="label-head"><span>콘텐츠 유형</span><span>비중</span></div>
       ${[['entertain', 34.7, true], ['knowledge', 16.5], ['music', 15.7], ['vlog', 8.5], ['unclassified', 14.1]].map(([id, pct, top]) => `
         <div class="label-row ${top ? 'top' : ''}">${dot(TYPE_BY_ID[id].color)}<span class="name">${typeLabel(id)}</span><span></span><span class="pct num">${p1(pct)}%</span><span class="bar"><i style="width:${pct}%;background:${TYPE_BY_ID[id].color}"></i></span></div>`).join('')}
-      <div class="label-foot">채널 집중도 HHI 612 · 상위 3개 채널 CR3 52.0%</div>
+      <div class="label-foot">채널 집중도 점수 612 · 상위 3개 채널 시청 비중 52.0%</div>
     </div>
   </section>
 
@@ -126,7 +128,7 @@ function viewHome() {
     <h2>3단계면 끝나요</h2>
     <ol class="steps">
       <li><b>내가 생각하는 나</b><span>평소 가장 많이 본다고 생각하는 유형을 골라요.</span></li>
-      <li><b>시청기록 올리기</b><span>Google Takeout에서 받은 시청기록 파일을 올려요.</span></li>
+      <li><b>기록 가져오기</b><span>Google Takeout에서 받은 시청기록 파일을 올려요.</span></li>
       <li><b>실제 시청기록 속 나</b><span>유형별 비중, 채널 집중도, 예상과의 차이를 확인해요.</span></li>
     </ol>
   </section>
@@ -135,10 +137,10 @@ function viewHome() {
     <div class="card stack">
       <h2>시청기록 파일 받는 방법</h2>
       <ol class="guide">
-        <li><a href="https://takeout.google.com/" target="_blank" rel="noopener">takeout.google.com</a>에 접속해 <b>모두 선택 해제</b>를 누릅니다.</li>
-        <li><b>YouTube 및 YouTube Music</b>만 선택합니다.</li>
-        <li><b>모든 YouTube 데이터 포함됨</b>을 눌러 <b>기록</b>만 남깁니다.</li>
-        <li><b>여러 형식</b>에서 기록 형식을 <b>JSON</b>으로 바꿉니다. (HTML도 읽을 수 있어요)</li>
+        <li><a href="https://takeout.google.com/" target="_blank" rel="noopener">takeout.google.com</a>에 접속해 <b>모두 선택 해제</b>를 눌러요.</li>
+        <li><b>YouTube 및 YouTube Music</b>만 선택해요.</li>
+        <li><b>모든 YouTube 데이터 포함됨</b>을 눌러 <b>기록</b>만 남겨요.</li>
+        <li><b>여러 형식</b>에서 기록 형식을 <b>JSON</b>으로 바꿔요. (HTML도 읽을 수 있어요)</li>
         <li>내보내기가 끝나면 받은 <b>zip 파일을 그대로</b> 올리면 돼요. 압축을 풀었다면 <b>시청 기록</b> 폴더의 <code>watch-history.json</code>을 올려도 돼요.</li>
       </ol>
     </div>
@@ -168,7 +170,7 @@ function viewPredict() {
   const choices = (name, kind) => CONTENT_TYPES.map((t) => `
     <div class="choice">
       <input type="${kind}" name="${name}" id="${name}-${t.id}" value="${t.id}">
-      <label for="${name}-${t.id}">${dot(t.color)}${t.label}<span class="mark" aria-hidden="true"></span></label>
+      <label for="${name}-${t.id}">${dot(t.color)}${t.label} · ${t.persona}<span class="mark" aria-hidden="true"></span></label>
     </div>`).join('');
   app.innerHTML = `
   <header class="stack">
@@ -188,7 +190,7 @@ function viewPredict() {
     </div>
     <p id="predError" class="notice warn" hidden></p>
     <div class="btn-row">
-      <button class="btn primary" type="submit" id="predSave">저장하고 시청기록 올리기</button>
+      <button class="btn primary" type="submit" id="predSave">저장하고 기록 가져오기</button>
       <a class="btn" href="#upload" id="predSkip">예상 없이 건너뛰기</a>
       ${state.prediction ? '<button class="btn danger" type="button" id="predClear">저장된 예상 지우기</button>' : ''}
     </div>
@@ -274,15 +276,15 @@ function viewUpload() {
   const pred = state.prediction;
   app.innerHTML = `
   <header class="stack">
-    <p class="eyebrow">2단계 · 시청기록 올리기</p>
+    <p class="eyebrow">2단계 · 내 유튜브 기록 가져오기</p>
     <h1 class="page-title">YouTube 시청기록 파일을 올려 주세요</h1>
-    <p class="lead">Google Takeout에서 받은 <b>zip 파일을 그대로</b> 올리거나, 압축을 푼 <code>watch-history.json</code>·<code>watch-history.html</code>을 올리세요. 이 브라우저 안에서 바로 읽고, 파일은 어디에도 전송되거나 저장되지 않아요.</p>
+    <p class="lead">Google Takeout에서 받은 <b>zip 파일을 그대로</b> 올리거나, 압축을 푼 <code>watch-history.json</code>·<code>watch-history.html</code>을 올려 주세요. 이 브라우저 안에서 바로 읽고, 파일은 어디에도 전송되거나 저장되지 않아요.</p>
   </header>
   ${state.dbError ? `<p class="notice warn">${esc(state.dbError)}</p>` : ''}
   <div class="notice small">${pred ? `예상 저장됨: 가장 많이 <b>${typeLabel(pred.primary)}</b>${pred.secondary.length ? `, 자주 ${pred.secondary.map(typeLabel).join(', ')}` : ''} · <a href="#predict">바꾸기</a>` : '아직 예상을 고르지 않았어요. 결과에서 비교하려면 <a href="#predict">먼저 예상을 골라 주세요</a>.'}</div>
   <label class="drop" id="drop" for="fileInput">
     <span class="drop-icon" aria-hidden="true"><svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 16V4"/><path d="m6 10 6-6 6 6"/><path d="M4 20h16"/></svg></span>
-    <span class="big">파일을 여기로 끌어다 놓거나 눌러서 선택하세요</span>
+    <span class="big">파일을 여기로 끌어다 놓거나 눌러서 선택해 주세요</span>
     <span class="small muted">Takeout zip 그대로 · JSON · HTML 모두 가능</span>
     <input type="file" id="fileInput" accept=".zip,.json,.html,.htm,application/zip,application/x-zip-compressed,application/json,text/html" hidden>
     <span class="btn small" aria-hidden="true">파일 선택</span>
@@ -331,7 +333,7 @@ function ensureConsent() {
         <li>업로드한 시청기록 파일은 <b>이 브라우저 안에서만</b> 분석되며, 서버로 전송되거나 저장되지 않아요.</li>
         <li>분석에는 <b>시청일시와 채널명(채널 ID)</b>을 사용해요. 같은 시각의 중복 기록을 걸러내기 위해 영상 주소(없으면 제목)를 분석 중에만 임시로 쓰며, 유형 분류에는 쓰지 않고 저장하지 않아요.</li>
         <li>분석 결과는 본인에게만 보이며 팀이나 제3자에게 제공되지 않아요.</li>
-        <li>‘이 결과 저장하기’를 직접 누른 경우에만 분석 기간, 유형별 비중, HHI·CR3 요약이 이 브라우저에 저장돼요.</li>
+        <li>‘이 결과 저장하기’를 직접 누른 경우에만 분석 기간, 유형별 비중, 채널 집중도 점수·상위 3개 채널 시청 비중 요약이 이 브라우저에 저장돼요.</li>
         <li>정치적 성향이나 채널의 호불호·신뢰성은 판단하지 않고, 시청 패턴 지표만 보여줘요.</li>
       </ul>
       <div class="btn-row modal-actions">
@@ -402,7 +404,7 @@ function renderUploadStatus() {
       ${info.skippedNonWatch ? `<li><span class="info"></span><span>검색 등 시청이 아닌 항목 · 제외</span><span class="num">${n0(info.skippedNonWatch)}건</span></li>` : ''}
       ${info.missingTime ? `<li><span class="bad"></span><span>날짜를 읽지 못한 항목 · 제외</span><span class="num">${n0(info.missingTime)}건</span></li>` : ''}
       ${info.unknownTz ? `<li><span class="bad"></span><span>시간대를 알 수 없어 UTC로 처리한 항목</span><span class="num">${n0(info.unknownTz)}건</span></li>` : ''}
-      <li><span class="info"></span><span>채널 정보가 없는 기록(삭제·비공개 영상 등) · 유형은 ‘미분류’, 집중도 계산에서는 제외</span><span class="num">${n0(noChannel)}건</span></li>
+      <li><span class="info"></span><span>채널 정보가 없는 기록(삭제·비공개 영상 등) · 분야는 ‘아직 분류하지 못함’, 집중도 계산에서는 제외</span><span class="num">${n0(noChannel)}건</span></li>
       <li><span class="ok"></span><span>분석 가능한 기록 · ${ymd(range.min)} ~ ${ymd(range.max)}</span><span class="num"><b>${n0(prepared.records.length)}건</b></span></li>
     </ul>
   </section>
@@ -423,7 +425,7 @@ function renderUploadStatus() {
     el.innerHTML = enough
       ? `선택한 기간(${ymd(p.start)} ~ ${ymd(p.end)})의 시청기록 <b class="num">${n0(cnt)}건</b>을 분석해요.`
       : cnt
-        ? `<span class="notice warn" style="display:block"><strong>분석 데이터가 부족합니다.</strong> 선택한 기간(${ymd(p.start)} ~ ${ymd(p.end)})의 시청기록이 ${n0(cnt)}건이에요. 결과의 신뢰도를 위해 최소 ${n0(MIN_SAMPLE)}건이 필요해요. 기간을 넓혀 주세요.</span>`
+        ? `<span class="notice warn" style="display:block"><strong>분석할 기록이 부족해요.</strong> 선택한 기간(${ymd(p.start)} ~ ${ymd(p.end)})의 시청기록이 ${n0(cnt)}건이에요. 결과의 신뢰도를 위해 최소 ${n0(MIN_SAMPLE)}건이 필요해요. 기간을 넓혀 주세요.</span>`
         : `<span class="notice warn" style="display:block">선택한 기간(${ymd(p.start)} ~ ${ymd(p.end)})에는 시청기록이 없어요. 기간을 넓혀 주세요.</span>`;
     btn.disabled = !enough || !!state.dbError;
   };
@@ -442,7 +444,7 @@ async function viewAnalyzing() {
     ['period', '분석 기간 적용'],
     ['db', '채널 유형 DB 불러오기'],
     ['classify', '채널별 콘텐츠 유형 분류'],
-    ['concentration', '채널 집중도(HHI·CR3) 계산'],
+    ['concentration', '채널 집중도 점수 계산'],
     ['compare', '내 예상과 비교'],
   ];
   app.innerHTML = `
@@ -464,7 +466,7 @@ async function viewAnalyzing() {
   if (!inPeriod.length) { app.insertAdjacentHTML('beforeend', '<p class="notice warn">선택한 기간에 시청기록이 없어요. <a href="#upload">기간을 바꿔 주세요.</a></p>'); return; }
   if (!state.upload.isSample && !hasEnoughSample(inPeriod.length)) {
     set('period', 'fail', `${period.label} · ${n0(inPeriod.length)}건`);
-    app.insertAdjacentHTML('beforeend', `<div class="notice warn" role="alert"><strong>분석 데이터가 부족합니다.</strong> 선택한 기간의 시청기록이 ${n0(inPeriod.length)}건이에요. 결과의 신뢰도를 위해 최소 ${n0(MIN_SAMPLE)}건이 필요해요.<div class="btn-row" style="margin-top:10px"><a class="btn" href="#upload">기간 바꾸기</a><a class="btn" href="#home">메인으로</a></div></div>`);
+    app.insertAdjacentHTML('beforeend', `<div class="notice warn" role="alert"><strong>분석할 기록이 부족해요.</strong> 선택한 기간의 시청기록이 ${n0(inPeriod.length)}건이에요. 결과의 신뢰도를 위해 최소 ${n0(MIN_SAMPLE)}건이 필요해요.<div class="btn-row" style="margin-top:10px"><a class="btn" href="#upload">기간 바꾸기</a><a class="btn" href="#home">메인으로</a></div></div>`);
     return;
   }
 
@@ -473,10 +475,10 @@ async function viewAnalyzing() {
 
   set('classify', 'run'); await frame();
   const result = analyze(state.upload.prepared.records, period, state.index, activePrediction());
-  set('classify', 'done', `분류 ${n0(result.types.classifiedCount)}건 · 미분류 ${n0(result.types.unclassifiedCount)}건`);
+  set('classify', 'done', `분류 ${n0(result.types.classifiedCount)}건 · 분류하지 못함 ${n0(result.types.unclassifiedCount)}건`);
 
   set('concentration', 'run'); await frame();
-  set('concentration', 'done', `채널 ${n0(result.concentration.channelCount)}개 · HHI ${n0(Math.round(result.concentration.hhi))}`);
+  set('concentration', 'done', `채널 ${n0(result.concentration.channelCount)}개 · 집중도 점수 ${n0(Math.round(result.concentration.hhi))}`);
 
   set('compare', 'run'); await frame();
   const cmp = result.comparison;
@@ -497,7 +499,7 @@ function emptyResult() {
     <h1 class="page-title" style="font-size:28px">아직 분석한 결과가 없어요</h1>
     <p class="muted">시청기록 파일을 올리면 이곳에 결과가 표시돼요. 새로고침하면 결과는 사라지고, 저장한 결과는 ‘이전 결과’에서 볼 수 있어요.</p>
     <div class="btn-row" style="justify-content:center">
-      <a class="btn primary" href="#upload">시청기록 올리기</a>
+      <a class="btn primary" href="#upload">내 유튜브 기록 가져오기</a>
       <a class="btn" href="#history">이전 결과 보기</a>
     </div>
   </section>`;
@@ -510,7 +512,7 @@ function comparisonCard(cmp, pred) {
   const r = state.result.types.representative;
   const real = r
     ? `<div class="t">${r.label}</div><div class="small">전체 시청기록의 <b class="num">${p1(r.pct)}%</b> (${n0(r.count)}건)</div><div class="small muted">업로드한 시청기록에서 계산한 값이에요.</div>`
-    : '<div class="small">분류된 기록이 없어 대표 유형을 정할 수 없어요.</div>';
+    : '<div class="small">분류된 기록이 없어 가장 많이 본 분야를 정할 수 없어요.</div>';
   let msg = '';
   if (cmp.status === 'match' || cmp.status === 'mismatch') {
     msg = `<p class="vs-msg">${esc(cmp.message)}</p>`;
@@ -521,7 +523,7 @@ function comparisonCard(cmp, pred) {
     if (cmp.tie) rows.push('<li>가장 높은 비중을 차지한 유형이 여러 개라 공동 1위로 판단했어요.</li>');
     msg += `<ul class="small" style="margin:0;padding-left:18px;display:grid;gap:2px">${rows.join('')}</ul>`;
   } else if (cmp.status === 'no-actual') {
-    msg = '<p class="small muted">실제 대표 유형이 없어 비교 문구를 보여드리지 않아요.</p>';
+    msg = '<p class="small muted">가장 많이 본 분야가 없어 비교 문구를 보여드리지 않아요.</p>';
   } else {
     msg = '<p class="small muted">예상을 고르면 실제 결과와 나란히 비교해 드려요.</p>';
   }
@@ -537,6 +539,92 @@ function comparisonCard(cmp, pred) {
   </section>`;
 }
 
+// 결과 화면: 가장 많이 본 채널 5개 (작은 목록)
+function topChannelsCard(top5, c) {
+  if (!top5.length) return '';
+  const max = Math.max(...top5.map((x) => x.count));
+  return `<div class="card stack top-mini">
+      <h2>가장 많이 본 채널 5개</h2>
+      <ol class="top-list">${top5.map((x, i) => {
+        const ty = TYPE_BY_ID[x.type] || UNCLASSIFIED;
+        return `<li>
+          <span class="rank num">${i + 1}</span>
+          <span class="top-name"><b>${esc(x.name)}</b><span class="top-type">${dot(ty.color)}${typeLabel(x.type)}</span></span>
+          <span class="top-cnt num">${n0(x.count)}건 · ${p1(x.pct)}%</span>
+          <span class="bar"><i style="width:${(x.count / max) * 100}%;background:${ty.color}"></i></span>
+        </li>`;
+      }).join('')}</ol>
+      <p class="small muted">채널 정보가 있는 ${n0(c.withChannel)}건 기준이에요.</p>
+    </div>`;
+}
+
+// 결과 화면: 채널 집중도를 쉬운 말로 (계산식은 상세 분석에)
+const EASY_LEVEL = {
+  low: '여러 채널을 고르게 봐요',
+  mid: '몇몇 채널을 자주 봐요',
+  high: '일부 채널에 많이 몰려 있어요',
+  veryhigh: '거의 몇 채널만 봐요',
+};
+function easyConcentrationCard(c, t, r) {
+  const level = c.level ? (EASY_LEVEL[c.level.tone] || c.level.label) : '계산할 수 없어요';
+  return `<section class="card stack">
+    <h2>내 시청은 얼마나 한곳에 모여 있을까?</h2>
+    <div class="easy-stats">
+      <div class="easy-stat">
+        <span class="easy-label">채널 집중도 ${HHI_LEVELS.provisional ? '<span class="pill warn" title="' + esc(HHI_LEVELS.note) + '">임시 기준</span>' : ''}</span>
+        <span class="easy-value">${level}</span>
+        <span class="small muted">채널 집중도 점수 <b class="num">${n0(Math.round(c.hhi))}</b>점 (최대 10,000점). 0에 가까울수록 여러 채널을 골고루 봤다는 뜻이에요. 채널 정보가 있는 ${n0(c.withChannel)}건 기준이에요.</span>
+      </div>
+      <div class="easy-stat">
+        <span class="easy-label">상위 3개 채널 시청 비중</span>
+        <span class="easy-value"><b class="num">${p1(c.cr3)}%</b></span>
+        <span class="small muted">가장 많이 본 3개 채널이 채널 정보가 있는 ${n0(c.withChannel)}건의 ${p1(c.cr3)}%를 차지해요.</span>
+        <span class="small muted">${c.cr3Channels.map((x) => esc(x.name)).join(', ') || '채널 정보 없음'}</span>
+      </div>
+      <div class="easy-stat">
+        <span class="easy-label">아직 분류하지 못한 기록</span>
+        <span class="easy-value"><b class="num">${p1(t.unclassifiedPct)}%</b></span>
+        <span class="small muted">전체 ${n0(r.total)}건 기준이에요. 채널 DB에 아직 없는 채널이라 분야를 정하지 못했어요.</span>
+      </div>
+    </div>
+    <p class="small muted">이 숫자는 몇몇 채널에 얼마나 몰려 있는지만 보여줘요. 좋고 나쁨이나 정보의 다양성·신뢰도를 판단하지 않아요. 계산 방법(채널 집중도 점수·상위 3개 채널 시청 비중)은 <a href="#detail">상세 분석</a>에서 볼 수 있어요.</p>
+  </section>`;
+}
+
+// 공유 이미지에 들어갈 핵심 값만 골라낸다 (채널 이름·영상 제목 제외)
+function shareCardData(r, sorted, pred) {
+  const t = r.types; const c = r.concentration; const rep = t.representative;
+  const nonzero = sorted.filter((x) => x.count > 0);
+  const cls = nonzero.filter((x) => x.id !== UNCLASSIFIED.id);
+  const unc = nonzero.find((x) => x.id === UNCLASSIFIED.id);
+  const rows = [...cls.slice(0, unc ? 4 : 5), ...(unc ? [unc] : [])]
+    .map((x, i) => ({ label: x.label, color: x.color, pct: x.pct, pctText: p1(x.pct), countText: n0(x.count), top: i === 0 && x.id !== UNCLASSIFIED.id }));
+  const cmp = r.comparison;
+  let predictionText = '예상 없이 분석했어요';
+  if (cmp.status === 'match') predictionText = `예상 적중! 기록의 1위도 ${TYPE_BY_ID[cmp.primary.id].persona}!`;
+  else if (cmp.status === 'mismatch') predictionText = `내가 예상한 건 ${TYPE_BY_ID[cmp.primary.id].persona}, 기록이 가리킨 건 ${TYPE_BY_ID[cmp.actual.id].persona}!`;
+  else if (cmp.status === 'no-actual') predictionText = '분류된 기록이 없어 비교하지 못했어요';
+  const levelText = c.level ? (EASY_LEVEL[c.level.tone] || c.level.label) : '계산할 수 없어요';
+  return {
+    persona: rep ? rep.persona : UNCLASSIFIED.persona,
+    color: rep ? TYPE_BY_ID[rep.id].color : '#7c8594',
+    imgSrc: rep ? (CHARACTER_DATA[rep.id] || CHARACTER_IMG[rep.id]) : null,
+    pctText: rep ? `${p1(rep.pct)}%` : '',
+    shareText: rep ? `${rep.label} 콘텐츠 · ${n0(rep.count)}건으로 가장 많아요` : '채널 정보가 아직 없어 분야를 정하지 못한 기록이에요.',
+    rows,
+    totalText: n0(r.total),
+    periodText: `${ymd(r.period.start)} ~ ${ymd(r.period.end)}`,
+    predictionText,
+    levelText,
+    isSample: !!(state.upload && state.upload.isSample),
+  };
+}
+
+function headlineHtml(h) {
+  if (!h) return '';
+  return `${h.main ? `<p class="lead"><b>${esc(h.main)}</b></p>` : ''}<p class="lead">${h.sub.map(esc).join(' ')}</p>`;
+}
+
 function viewResult() {
   const r = state.result;
   if (!r) { emptyResult(); return; }
@@ -546,77 +634,85 @@ function viewResult() {
   }
   const t = r.types; const c = r.concentration; const rep = t.representative;
   const pred = activePrediction();
+  const headline = buildHeadline(r.comparison, t);
   const sorted = [...t.rows].sort((a, b) => (a.id === UNCLASSIFIED.id) - (b.id === UNCLASSIFIED.id) || b.count - a.count);
   const hist = storage.getHistory().filter((e) => e.id !== state.savedId);
   const prevEntry = hist[0];
+  const shown = sorted.filter((x) => x.count > 0);
+  const zeroCount = sorted.filter((x) => x.count === 0 && x.id !== UNCLASSIFIED.id).length;
   const sumPct = t.rows.reduce((s, x) => s + x.pct, 0);
 
   app.innerHTML = `
   ${sampleBanner()}
   <header class="stack">
-    <p class="eyebrow">분석 결과 · ${esc(state.upload.isSample ? '예시 데이터' : state.upload.fileName)}</p>
+    <p class="eyebrow">나의 시청 기록 돌아보기 · ${esc(state.upload.isSample ? '예시 데이터' : state.upload.fileName)}</p>
     <h1 class="page-title">실제 시청기록 속 나</h1>
     <p class="lead">${ymd(r.period.start)} ~ ${ymd(r.period.end)} 동안의 시청기록 <b class="num">${n0(r.total)}건</b>을 채널 기준으로 분류했어요.</p>
+    ${headlineHtml(headline)}
   </header>
 
-  ${t.lowClassification ? `<p class="notice warn">시청기록의 <b>${p1(t.unclassifiedPct)}%</b>가 아직 채널 DB에 없는 채널이라 ‘유형 미분류’로 남았어요. 대표 유형은 분류된 기록만으로 정했기 때문에 실제와 차이가 클 수 있어요. 미분류 채널 목록은 <a href="#detail">상세 분석</a>에서 볼 수 있어요.</p>` : ''}
+  ${t.lowClassification ? `<p class="notice warn">시청기록의 <b>${p1(t.unclassifiedPct)}%</b>가 아직 채널 DB에 없는 채널이라 ‘아직 분류하지 못한 기록’으로 남았어요. 분석에 한계가 있어요. 가장 많이 본 분야는 분류된 기록만으로 정했기 때문에 실제와 차이가 클 수 있어요. 분류하지 못한 채널 목록은 <a href="#detail">상세 분석</a>에서 볼 수 있어요.</p>` : ''}
 
-  <section class="grid-2">
+  <section class="grid-2 result-top">
+    <div class="result-col">
     ${rep ? `<div class="persona-card" style="--tc:${TYPE_BY_ID[rep.id].color}">
-        <span class="kicker">나의 대표 시청 유형</span>
-        <span class="persona">${rep.persona}</span>
+        <div class="persona-head">
+          <div class="persona-text">
+            <span class="kicker">내가 가장 많이 보는 분야</span>
+            <span class="persona">${rep.persona}</span>
+          </div>
+          ${CHARACTER_IMG[rep.id] ? `<img class="persona-char" src="${CHARACTER_IMG[rep.id]}" alt="${rep.persona} 캐릭터" width="360" height="340">` : ''}
+        </div>
         <div class="share"><b>${p1(rep.pct)}%</b><span>${rep.label} 콘텐츠 · ${n0(rep.count)}건으로 가장 많아요</span></div>
         ${t.tiedTopIds.length > 1 ? `<p class="small">같은 건수로 공동 1위: ${t.tiedTopIds.map(typeLabel).join(', ')}</p>` : ''}
-        <p class="fine">대표 유형 이름은 재미를 위한 표현이에요. 성격이나 정체성을 판정하지 않아요.</p>
+        <p class="fine">유형 이름은 재미를 위한 표현이에요. 성격이나 정체성을 판정하지 않아요.</p>
       </div>`
-      : '<div class="card stack"><h2>대표 시청 유형</h2><p>분류된 기록이 없어 대표 유형을 정할 수 없어요. 채널 DB에 채널을 추가하면 분류할 수 있어요.</p></div>'}
+      : `<div class="persona-card" style="--tc:#7c8594">
+        <div class="persona-text">
+          <span class="kicker">내가 가장 많이 보는 분야</span>
+          <span class="persona">${UNCLASSIFIED.persona}</span>
+        </div>
+        <p class="small">채널 정보가 아직 없어 분야를 정하지 못한 기록이에요. 채널 DB에 채널이 추가되면 분야를 알 수 있어요.</p>
+        <p class="fine">유형 이름은 재미를 위한 표현이에요. 성격이나 정체성을 판정하지 않아요.</p>
+      </div>`}
+    ${topChannelsCard(r.top5, c)}
+    </div>
     <div class="label-card" aria-label="콘텐츠 유형별 비중">
       ${state.upload.isSample ? '<div class="example-tag">예시 데이터</div>' : ''}
-      <div class="label-title">내 시청 구성</div>
-      <div class="label-meta"><span>총 시청기록 <b class="num">${n0(r.total)}</b>건 기준</span><span>${esc(r.period.label)}</span></div>
+      <div class="label-title">내가 보는 콘텐츠 구성</div>
+      <div class="label-meta"><span>전체 <b class="num">${n0(r.total)}</b>건 기준</span><span>${esc(r.period.label)}</span></div>
       <div class="label-head"><span>콘텐츠 유형</span><span>건수 · 비중</span></div>
-      ${sorted.map((x) => `<div class="label-row ${rep && t.tiedTopIds.includes(x.id) ? 'top' : ''}">${dot(x.color)}<span class="name">${x.label}</span><span class="cnt num">${n0(x.count)}건</span><span class="pct num">${p1(x.pct)}%</span><span class="bar"><i style="width:${x.pct}%;background:${x.color}"></i></span></div>`).join('')}
-      <div class="label-foot">비중 = 유형별 건수 ÷ 전체 ${n0(r.total)}건 × 100 · 합계 ${p1(sumPct)}% (표시값은 반올림)</div>
+      ${shown.map((x) => `<div class="label-row ${rep && t.tiedTopIds.includes(x.id) ? 'top' : ''}">${dot(x.color)}<span class="name">${x.label}</span><span class="cnt num">${n0(x.count)}건</span><span class="pct num">${p1(x.pct)}%</span><span class="bar"><i style="width:${x.pct}%;background:${x.color}"></i></span></div>`).join('')}
+      <div class="label-foot">비중 = 유형별 건수 ÷ 전체 ${n0(r.total)}건 × 100 · 합계 ${p1(sumPct)}% (표시값은 반올림)${zeroCount ? `<br>본 기록이 없는 유형 ${zeroCount}개` : ''}</div>
     </div>
   </section>
 
   ${comparisonCard(r.comparison, pred)}
 
   <section class="card stack">
-    <h2>콘텐츠 유형별 비중</h2>
-    <p class="sub">그래프 위에 마우스를 올리거나 눌러 정확한 건수와 비중을 확인하세요.</p>
-    <div class="chart-box"><canvas id="typeChart" aria-label="콘텐츠 유형별 비중 도넛 차트" role="img"></canvas></div>
+    <h2>새로운 콘텐츠 유형 탐색</h2>
+    ${r.suggestion ? `<p>${esc(r.suggestion.message)}</p>
+      <ul class="explore-list">${r.suggestion.types.map((x) => {
+        const url = youtubeSearchUrl(x.id);
+        return `<li class="explore-item">
+          <div class="explore-info">
+            <span class="explore-name">${dot(x.color)} ${x.label} · ${TYPE_BY_ID[x.id].persona}</span>
+            <span class="explore-meta">내 시청 비중 <b class="num">${p1(x.pct)}%</b> · 검색어 “${esc(exploreQuery(x.id))}”</span>
+          </div>
+          ${url ? `<a class="btn explore-btn" href="${esc(url)}" target="_blank" rel="noopener noreferrer" data-explore="${x.id}" aria-label="유튜브에서 ${x.label} 탐색하기 (새 탭에서 열림)">유튜브에서 탐색하기<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M7 17 17 7"/><path d="M8 7h9v9"/></svg></a>` : ''}
+        </li>`;
+      }).join('')}</ul>
+      <p class="small muted">버튼을 누르면 새 탭에서 유튜브 검색 결과가 열려요. 검색 결과는 유튜브가 보여주는 것으로, 이 서비스가 특정 채널이나 영상을 골라 추천하지는 않아요. 적게 본 유형이 더 좋다는 뜻도 아니에요.</p>`
+      : '<p class="muted">분류된 기록이 부족해 제안할 유형이 없어요.</p>'}
   </section>
 
-  <section class="grid-3">
-    <div class="card stack">
-      <h2>채널 집중도 HHI ${HHI_LEVELS.provisional ? '<span class="pill warn" title="' + esc(HHI_LEVELS.note) + '">임시 기준</span>' : ''}</h2>
-      <div class="big-num">${n0(Math.round(c.hhi))}<small> / 10,000</small></div>
-      ${c.level ? `<span class="pill accent" style="justify-self:start">${c.level.label}</span>` : ''}
-      <p class="small muted">채널별 시청 비중(%)을 제곱해 모두 더한 값이에요. 한 채널만 보면 10,000, 여러 채널에 고르게 나뉠수록 0에 가까워요.</p>
-    </div>
-    <div class="card stack">
-      <h2>상위 3개 채널 비중 CR3</h2>
-      <div class="big-num">${p1(c.cr3)}<small>%</small></div>
-      <div class="small">${c.cr3Channels.map((x) => `${esc(x.name)} <span class="num muted">${p1(x.pct)}%</span>`).join(' + ')}</div>
-      ${c.cr3Note ? `<p class="small muted">${esc(c.cr3Note)}</p>` : ''}
-    </div>
-    <div class="card stack">
-      <h2>유형 미분류 비중</h2>
-      <div class="big-num">${p1(t.unclassifiedPct)}<small>%</small></div>
-      <p class="small muted">채널 DB에 없는 채널 ${n0(r.unclassifiedChannels.length)}개와 채널 정보가 없는 기록 ${n0(c.noChannel)}건이에요. 전체 비중 계산에는 포함돼요.</p>
-    </div>
-  </section>
-  <p class="notice small">HHI와 CR3는 <b>채널별 시청기록이 얼마나 몰려 있는지</b>만 나타내요. 정보의 다양성, 정치적 편향, 콘텐츠의 신뢰도를 직접 측정하지 않아요. 채널 정보가 없는 ${n0(c.noChannel)}건은 두 지표 계산에서 빠졌어요. ${HHI_LEVELS.provisional ? '단계 이름(분산·집중 등)은 ' + esc(HHI_LEVELS.note) : ''}</p>
+  ${easyConcentrationCard(c, t, r)}
 
   <section class="grid-2">
     <div class="card stack">
-      <h2>가장 많이 본 채널 5개</h2>
-      <div class="chart-box"><canvas id="topChart" aria-label="상위 5개 채널 막대 차트" role="img"></canvas></div>
-      <div class="table-wrap"><table><thead><tr><th>채널</th><th>유형</th><th class="r">건수</th><th class="r">비중</th></tr></thead><tbody>
-        ${r.top5.map((x) => `<tr><td>${esc(x.name)}</td><td>${typeLabel(x.type)}</td><td class="r">${n0(x.count)}</td><td class="r">${p1(x.pct)}%</td></tr>`).join('')}
-      </tbody></table></div>
-      <p class="small muted">채널 비중은 채널 정보가 있는 ${n0(c.withChannel)}건 기준이에요.</p>
+      <h2>내가 자주 보는 콘텐츠는?</h2>
+      <p class="sub">그래프 위에 마우스를 올리거나 눌러 정확한 건수와 비중을 확인해 보세요.</p>
+      <div class="chart-box"><canvas id="typeChart" aria-label="콘텐츠 유형별 비중 도넛 차트" role="img"></canvas></div>
     </div>
     <div class="card stack">
       <h2>분석 기간과 기록</h2>
@@ -633,27 +729,10 @@ function viewResult() {
   </section>
 
   <section class="card stack">
-    <h2>새로운 콘텐츠 유형 탐색</h2>
-    ${r.suggestion ? `<p>${esc(r.suggestion.message)}</p>
-      <ul class="explore-list">${r.suggestion.types.map((x) => {
-        const url = youtubeSearchUrl(x.id);
-        return `<li class="explore-item">
-          <div class="explore-info">
-            <span class="explore-name">${dot(x.color)} ${x.label}</span>
-            <span class="explore-meta">내 시청 비중 <b class="num">${p1(x.pct)}%</b> · 검색어 “${esc(exploreQuery(x.id))}”</span>
-          </div>
-          ${url ? `<a class="btn explore-btn" href="${esc(url)}" target="_blank" rel="noopener noreferrer" data-explore="${x.id}" aria-label="유튜브에서 ${x.label} 탐색하기 (새 탭에서 열림)">유튜브에서 탐색하기<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M7 17 17 7"/><path d="M8 7h9v9"/></svg></a>` : ''}
-        </li>`;
-      }).join('')}</ul>
-      <p class="small muted">버튼을 누르면 새 탭에서 유튜브 검색 결과가 열려요. 검색 결과는 유튜브가 보여주는 것으로, 이 서비스가 특정 채널이나 영상을 골라 추천하지는 않아요. 적게 본 유형이 더 좋다는 뜻도 아니에요.</p>`
-      : '<p class="muted">분류된 기록이 부족해 제안할 유형이 없어요.</p>'}
-  </section>
-
-  <section class="card stack">
     <h2>이 결과를 읽는 방법</h2>
     <ul class="small" style="margin:0;padding-left:18px;display:grid;gap:4px">
       <li>모든 비중은 <b>시청기록 건수</b> 기준이에요. Takeout 파일에는 시청 시간이 없어서, 1분짜리 영상과 1시간짜리 영상을 같은 1건으로 세요.</li>
-      <li>콘텐츠 유형은 영상 제목이 아니라 <b>채널</b>로 정해요. 채널 DB에 등록된 채널만 분류되고, 나머지는 ‘유형 미분류’로 남아요.</li>
+      <li>콘텐츠 유형은 영상 제목이 아니라 <b>채널</b>로 정해요. 채널 DB에 등록된 채널만 분류되고, 나머지는 ‘아직 분류하지 못한 기록’으로 남아요.</li>
       <li>같은 영상을 다시 보면 각각 1건으로 세요. 같은 시각에 같은 영상이 두 번 기록된 경우만 중복으로 보고 뺐어요.</li>
       <li>이 결과는 좋고 나쁨의 평가가 아니라, 시청 패턴을 스스로 돌아보기 위한 거울이에요.</li>
     </ul>
@@ -662,14 +741,13 @@ function viewResult() {
   ${prevEntry && !state.upload.isSample ? quickCompare(prevEntry) : ''}
 
   <div class="btn-row">
-    <button class="btn primary" id="saveBtn" type="button" ${state.upload.isSample || state.savedId ? 'disabled' : ''}>${state.savedId ? '이 브라우저에 저장됨' : '이 결과 저장하기'}</button>
+    <button class="btn primary" id="saveBtn" type="button">${state.savedId ? '결과 이미지 다시 저장하기' : '이 결과 저장하기'}</button>
     <a class="btn" href="#detail">상세 분석 · 계산 근거</a>
     <a class="btn" href="#history">이전 결과와 비교</a>
   </div>
-  <p class="small muted">${state.upload.isSample ? '예시 데이터 결과는 저장할 수 없어요.' : '저장하면 유형별 비중, HHI, CR3, 분석 기간, 내 예상만 이 브라우저에 남아요. 영상 제목과 채널명은 저장하지 않아요.'}</p>`;
+  <p class="small muted">누르면 가장 많이 보는 분야와 시청 구성을 담은 공유용 이미지(JPG)가 내 기기에 저장돼요. 채널 이름과 영상 제목은 이미지에 넣지 않아요. ${state.upload.isSample ? '예시 데이터 결과는 이미지에 ‘예시 데이터’로 표시되고, 이전 결과 목록에는 남지 않아요.' : '유형별 비중, 채널 집중도 점수, 상위 3개 채널 시청 비중, 분석 기간, 내 예상은 이 브라우저의 ‘이전 결과’에도 남아요.'}</p>`;
 
   charts.typeDonut(document.getElementById('typeChart'), sorted);
-  charts.hBar(document.getElementById('topChart'), r.top5.map((x) => ({ name: x.name, count: x.count, pct: x.pct })), { colors: r.top5.map((x) => TYPE_BY_ID[x.type].color) });
   bindPeriod('res', () => {});
   document.getElementById('reanalyze').addEventListener('click', () => {
     const p = currentPeriod();
@@ -677,10 +755,27 @@ function viewResult() {
     state.result = null; go('analyzing');
   });
   const save = document.getElementById('saveBtn');
-  save.addEventListener('click', () => {
-    const entry = toHistoryEntry(r, activePrediction());
-    if (storage.addHistory(entry)) { state.savedId = entry.id; toast('이 브라우저에 결과를 저장했어요.'); render(); }
-    else toast('저장하지 못했어요. 브라우저가 저장을 막고 있을 수 있어요.');
+  save.addEventListener('click', async () => {
+    save.disabled = true;
+    const label = save.textContent;
+    save.textContent = '이미지 만드는 중…';
+    let imageOk = false;
+    try {
+      const blob = await makeShareCard(shareCardData(r, sorted, activePrediction()));
+      const d = new Date();
+      downloadBlob(blob, `review-결과-${d.getFullYear()}${String(d.getMonth() + 1).padStart(2, '0')}${String(d.getDate()).padStart(2, '0')}.jpg`);
+      imageOk = true;
+    } catch (e) {
+      console.error(e);
+    }
+    let historyMsg = '';
+    if (!state.upload.isSample && !state.savedId) {
+      const entry = toHistoryEntry(r, activePrediction());
+      if (storage.addHistory(entry)) { state.savedId = entry.id; historyMsg = ' 이전 결과에도 기록했어요.'; }
+    }
+    toast(imageOk ? '결과 이미지를 저장했어요.' + historyMsg : '이미지를 만들지 못했어요.' + historyMsg);
+    if (historyMsg) render();
+    else { save.disabled = false; save.textContent = label; }
   });
 }
 
@@ -698,9 +793,9 @@ function quickCompare(prev) {
   <section class="card stack">
     <h2>지난 저장 결과와 비교 <span class="pill">${ymd(prev.savedAt)} 저장</span></h2>
     <dl class="kv">
-      <dt>대표 유형</dt><dd>${prev.representative ? typeLabel(prev.representative) : '없음'} → ${curr.representative ? typeLabel(curr.representative) : '없음'}${cmp.representativeChanged ? ' <span class="pill accent">바뀜</span>' : ''}</dd>
-      <dt>HHI</dt><dd><span class="num">${n0(Math.round(prev.hhi))} → ${n0(Math.round(curr.hhi))}</span> (${signed(cmp.hhi.diff, 0)})</dd>
-      <dt>CR3</dt><dd><span class="num">${p1(prev.cr3)}% → ${p1(curr.cr3)}%</span> (${signed(cmp.cr3.diff, 1, '%p')})</dd>
+      <dt>가장 많이 본 분야</dt><dd>${prev.representative ? typeLabel(prev.representative) : '없음'} → ${curr.representative ? typeLabel(curr.representative) : '없음'}${cmp.representativeChanged ? ' <span class="pill accent">바뀜</span>' : ''}</dd>
+      <dt>채널 집중도 점수</dt><dd><span class="num">${n0(Math.round(prev.hhi))} → ${n0(Math.round(curr.hhi))}</span> (${signed(cmp.hhi.diff, 0)})</dd>
+      <dt>상위 3개 채널 시청 비중</dt><dd><span class="num">${p1(prev.cr3)}% → ${p1(curr.cr3)}%</span> (${signed(cmp.cr3.diff, 1, '%p')})</dd>
       ${cmp.biggest ? `<dt>가장 크게 변한 유형</dt><dd>${cmp.biggest.label} ${signed(cmp.biggest.diff, 1, '%p')}</dd>` : ''}
     </dl>
     <p class="small muted">분석 기간이 다르면 직접 비교하기 어려울 수 있어요. 지난 결과: ${esc(prev.period.label)} · ${ymd(prev.period.start)} ~ ${ymd(prev.period.end)}</p>
@@ -717,7 +812,8 @@ function viewDetail() {
   const terms = c.channels.slice(0, 5).map((x) => `${p1(x.pct)}²`);
   const restSum = c.channels.slice(5).reduce((s, x) => s + x.pct * x.pct, 0);
   const ms = t.matchStats;
-  const csv = ['channel_name,channel_id,watch_count,type', ...r.unclassifiedChannels.map((x) => `"${x.name.replace(/"/g, '""')}",${x.channelId || ''},${x.count},`)].join('\n');
+  const q = (v) => `"${String(v).replace(/"/g, '""')}"`;
+  const csv = ['channel_name,channel_id,watch_count,sample_titles,type', ...r.unclassifiedChannels.map((x) => `${q(x.name)},${x.channelId || ''},${x.count},${q((x.titles || []).join(' | '))},`)].join('\n');
   app.innerHTML = `
   ${sampleBanner()}
   <header class="stack">
@@ -738,16 +834,16 @@ function viewDetail() {
 
   <section class="grid-2">
     <div class="card stack">
-      <h2>HHI 계산</h2>
-      <p class="small">채널 정보가 있는 ${n0(c.withChannel)}건에서 각 채널의 비중 sᵢ(%)를 구해 제곱한 뒤 모두 더해요.</p>
+      <h2>채널 집중도 점수(HHI) 계산</h2>
+      <p class="small">채널 정보가 있는 ${n0(c.withChannel)}건 기준으로 각 채널의 비중 sᵢ(%)를 구해 제곱한 뒤 모두 더해요.</p>
       <div class="formula">HHI = Σ sᵢ² = ${terms.join(' + ')}${c.channels.length > 5 ? ` + (나머지 ${n0(c.channels.length - 5)}개 채널 ${p1(restSum)})` : ''} = <b>${p1(c.hhi)}</b></div>
       <p class="small muted">범위 0 ~ 10,000. 현재 단계: ${c.level ? c.level.label : '-'} (${HHI_LEVELS.provisional ? '임시 기준 · js/config.js에서 조정' : '확정 기준'})</p>
-      <div class="table-wrap"><table><thead><tr><th>단계</th><th class="r">HHI 상한</th></tr></thead><tbody>
+      <div class="table-wrap"><table><thead><tr><th>단계</th><th class="r">점수 상한</th></tr></thead><tbody>
         ${HHI_LEVELS.levels.map((l) => `<tr><td>${l.label}</td><td class="r">${l.max === Infinity ? '10,000' : n0(l.max)}</td></tr>`).join('')}
       </tbody></table></div>
     </div>
     <div class="card stack">
-      <h2>CR3 계산</h2>
+      <h2>상위 3개 채널 시청 비중(CR3) 계산</h2>
       <p class="small">시청기록이 가장 많은 3개 채널의 비중을 더해요.</p>
       <div class="formula">CR3 = ${c.cr3Channels.map((x) => p1(x.pct)).join(' + ')} = <b>${p1(c.cr3)}%</b></div>
       <ul class="small" style="margin:0;padding-left:18px">${c.cr3Channels.map((x) => `<li>${esc(x.name)}: ${n0(x.count)}건 ÷ ${n0(c.withChannel)}건</li>`).join('')}</ul>
@@ -768,9 +864,9 @@ function viewDetail() {
   </section>
 
   <section class="card stack">
-    <h2>유형 미분류 채널 <span class="pill">${n0(r.unclassifiedChannels.length)}개</span></h2>
-    <p class="small">팀에서 채널 DB(<code>data/channel-types.json</code>)에 추가할 수 있도록 CSV로 정리했어요. <code>type</code> 열에 vlog, entertain, game, beauty, knowledge, music, sports, news 중 하나를 채워 넣으면 돼요. <code>channel_id</code>(UC로 시작)가 있는 채널은 DB에 ID까지 넣으면 채널 이름이 바뀌어도 매칭돼요.</p>
-    <textarea class="copybox" id="csvBox" readonly aria-label="미분류 채널 CSV">${esc(csv)}</textarea>
+    <h2>아직 분류하지 못한 채널 <span class="pill">${n0(r.unclassifiedChannels.length)}개</span></h2>
+<p class="small">팀에서 채널 DB(<code>data/channel-types.json</code>)를 채울 수 있도록 CSV로 정리했어요. 복사한 내용을 팀의 <b>분류하지 못한 채널 분류 도구</b>(<code>tools/classify.html</code>)에 붙여 넣으면 한 번에 분류하고 검수할 수 있어요. <code>sample_titles</code>에는 판단을 돕기 위해 그 채널에서 내가 본 영상 제목이 최대 3개 들어가요. 이 내용은 버튼을 눌러 복사할 때만 쓰이고, 사이트가 어디로 보내지 않아요.</p>
+    <textarea class="copybox" id="csvBox" readonly aria-label="분류하지 못한 채널 CSV">${esc(csv)}</textarea>
     <div class="btn-row"><button class="btn small" id="copyCsv" type="button">CSV 복사</button></div>
   </section>`;
 
@@ -807,8 +903,8 @@ function viewHistory() {
     <div class="history-item">
       <input type="checkbox" id="sel-${esc(e.id)}" value="${esc(e.id)}" ${i < 2 ? 'checked' : ''} aria-label="비교에 사용">
       <label for="sel-${esc(e.id)}" style="min-width:0">
-        <div><b>${e.current ? '지금 결과 (저장 안 함)' : ymd(e.savedAt) + ' 저장'}</b> · ${e.representative ? typeLabel(e.representative) : '대표 유형 없음'}</div>
-        <div class="meta">${esc(e.period.label)} ${ymd(e.period.start)} ~ ${ymd(e.period.end)} · ${n0(e.total)}건 · HHI ${n0(Math.round(e.hhi))} · CR3 ${p1(e.cr3)}%${e.prediction ? ` · 예상: ${typeLabel(e.prediction.primary)}` : ''}</div>
+        <div><b>${e.current ? '지금 결과 (저장 안 함)' : ymd(e.savedAt) + ' 저장'}</b> · ${e.representative ? typeLabel(e.representative) : '가장 많이 본 분야 없음'}</div>
+        <div class="meta">${esc(e.period.label)} ${ymd(e.period.start)} ~ ${ymd(e.period.end)} · ${n0(e.total)}건 · 집중도 점수 ${n0(Math.round(e.hhi))} · 상위 3개 비중 ${p1(e.cr3)}%${e.prediction ? ` · 예상: ${typeLabel(e.prediction.primary)}` : ''}</div>
       </label>
       ${e.current ? '' : `<span class="btn-row"><button class="btn small danger" type="button" data-del="${esc(e.id)}">삭제</button></span>`}
     </div>`;
@@ -824,14 +920,14 @@ function viewHistory() {
   <section class="stack" id="histList">${entries.map(item).join('')}</section>
   <p class="small muted" id="selNote">비교할 결과를 2개 골라 주세요.</p>
   <section id="cmpBox"></section>` : `
-  <section class="card empty"><p>아직 저장한 결과가 없어요.</p><p class="small muted">결과 화면에서 ‘이 결과 저장하기’를 누르면 여기에 쌓여요.</p><a class="btn primary" href="#upload">시청기록 분석하기</a></section>`}
+  <section class="card empty"><p>아직 저장한 결과가 없어요.</p><p class="small muted">결과 화면에서 ‘이 결과 저장하기’를 누르면 여기에 쌓여요.</p><a class="btn primary" href="#upload">내 유튜브 기록 가져오기</a></section>`}
 
   <section class="card stack">
     <h2>저장되는 데이터와 위치</h2>
     <p class="small">이 서비스에는 로그인과 서버가 없어요. 아래 정보만 <b>지금 쓰고 있는 브라우저의 LocalStorage</b>에 저장돼요.</p>
     <ul class="small" style="margin:0;padding-left:18px;display:grid;gap:2px">
       <li><code>${STORAGE_KEYS.prediction}</code>: 내가 고른 예상 유형</li>
-      <li><code>${STORAGE_KEYS.history}</code>: 저장한 결과(분석 날짜, 기간, 유형별 건수·비중, HHI, CR3, 대표 유형, 그때의 예상) · 최대 20개</li>
+      <li><code>${STORAGE_KEYS.history}</code>: 저장한 결과(분석 날짜, 기간, 유형별 건수·비중, 채널 집중도 점수, 상위 3개 채널 시청 비중, 가장 많이 본 분야, 그때의 예상) · 최대 20개</li>
     </ul>
     <p class="small">원본 시청기록 파일, 영상 제목, 채널명은 저장하지 않아요. 브라우저 데이터를 지우거나 다른 기기·브라우저를 쓰면 저장한 결과를 되살릴 수 없어요.</p>
     <div class="btn-row">
@@ -854,9 +950,9 @@ function viewHistory() {
     <div class="card stack">
       <h2>${la} → ${lb}</h2>
       <dl class="kv">
-        <dt>대표 유형</dt><dd>${a.representative ? typeLabel(a.representative) : '없음'} → ${b.representative ? typeLabel(b.representative) : '없음'}${cmp.representativeChanged ? ' <span class="pill accent">바뀜</span>' : ''}</dd>
-        <dt>HHI</dt><dd><span class="num">${n0(Math.round(a.hhi))} → ${n0(Math.round(b.hhi))}</span> (${signed(cmp.hhi.diff, 0)})</dd>
-        <dt>CR3</dt><dd><span class="num">${p1(a.cr3)}% → ${p1(b.cr3)}%</span> (${signed(cmp.cr3.diff, 1, '%p')})</dd>
+        <dt>가장 많이 본 분야</dt><dd>${a.representative ? typeLabel(a.representative) : '없음'} → ${b.representative ? typeLabel(b.representative) : '없음'}${cmp.representativeChanged ? ' <span class="pill accent">바뀜</span>' : ''}</dd>
+        <dt>채널 집중도 점수</dt><dd><span class="num">${n0(Math.round(a.hhi))} → ${n0(Math.round(b.hhi))}</span> (${signed(cmp.hhi.diff, 0)})</dd>
+        <dt>상위 3개 채널 시청 비중</dt><dd><span class="num">${p1(a.cr3)}% → ${p1(b.cr3)}%</span> (${signed(cmp.cr3.diff, 1, '%p')})</dd>
         <dt>분석 기간</dt><dd>${ymd(a.period.start)}~${ymd(a.period.end)} / ${ymd(b.period.start)}~${ymd(b.period.end)}</dd>
       </dl>
       <div class="chart-box tall"><canvas id="cmpChart" role="img" aria-label="유형별 비중 비교 막대 차트"></canvas></div>

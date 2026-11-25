@@ -181,6 +181,39 @@ export function comparePrediction(prediction, types) {
   };
 }
 
+// ---------- 결과 한 줄 요약 ----------
+
+// 마지막 글자에 받침이 있는지 (한글이 아니면 없는 것으로 본다)
+export function hasBatchim(word) {
+  const code = String(word).charCodeAt(String(word).length - 1) - 0xac00;
+  return code >= 0 && code <= 11171 && code % 28 !== 0;
+}
+// 이에요/예요: 음악 → 음악이에요, 스포츠 → 스포츠예요
+export function withIyeyo(word) { return word + (hasBatchim(word) ? '이에요' : '예요'); }
+// 이었어요/였어요
+export function withIeosseoyo(word) { return word + (hasBatchim(word) ? '이었어요' : '였어요'); }
+
+// 결과 화면 맨 위 한 줄 요약. 유형 이름은 config.js의 persona를 불러와 써서, 이름이 바뀌어도 문구는 고치지 않는다.
+// 분류된 기록이 없으면 null. 예상이 있으면 main(대표 문구) + sub(비율 문구), 없으면 main 없이 sub만.
+export function buildHeadline(comparison, types) {
+  const rep = types && types.representative;
+  if (!rep) return null;
+  const noun = TYPE_NOUN[rep.id];
+  const ratio = `내 시청의 ${rep.pct.toFixed(1)}%는 ${withIeosseoyo(noun)}.`;
+  const most = `내가 가장 많이 본 콘텐츠는 ${withIyeyo(noun)}.`;
+  const cmp = comparison || { status: 'no-prediction' };
+  if (cmp.status === 'match') {
+    return { main: `예상 적중! 기록의 1위도 ${TYPE_BY_ID[cmp.primary.id].persona}!`, sub: [ratio] };
+  }
+  if (cmp.status === 'mismatch') {
+    return {
+      main: `내가 예상한 건 ${TYPE_BY_ID[cmp.primary.id].persona}, 기록이 가리킨 건 ${TYPE_BY_ID[cmp.actual.id].persona}!`,
+      sub: [ratio],
+    };
+  }
+  return { main: null, sub: [ratio, most] };
+}
+
 // ---------- 새로운 유형 탐색 제안 ----------
 
 export function suggestTypes(types, max = 2) {
@@ -223,11 +256,18 @@ export function analyze(prepared, period, index, prediction) {
     if (r.channel && !channelTypeMap.has(r.channel)) channelTypeMap.set(r.channel, classifyChannel(r.channel, r.channelId, index).type);
     if (r.channel && r.channelId && !channelIdMap.has(r.channel)) channelIdMap.set(r.channel, r.channelId);
   }
+  // 미분류 채널의 대표 영상 제목(최대 3개): 팀이 채널 유형을 판단할 때 참고용. 내 화면에서 복사할 때만 쓰인다.
+  const channelTitles = new Map();
+  for (const r of inPeriod) {
+    if (!r.channel || !r.title) continue;
+    const list = channelTitles.get(r.channel) || [];
+    if (list.length < 3 && !list.includes(r.title)) { list.push(r.title); channelTitles.set(r.channel, list); }
+  }
   conc.channels.forEach((c) => { c.type = channelTypeMap.get(c.name) || UNCLASSIFIED.id; });
   // 팀이 DB에 채널을 추가할 수 있도록 미분류 채널에는 채널 ID(있을 때)를 함께 담는다.
   const unclassifiedChannels = conc.channels
     .filter((c) => c.type === UNCLASSIFIED.id)
-    .map((c) => ({ ...c, channelId: channelIdMap.get(c.name) || '' }));
+    .map((c) => ({ ...c, channelId: channelIdMap.get(c.name) || '', titles: channelTitles.get(c.name) || [] }));
   return {
     empty: false,
     period,

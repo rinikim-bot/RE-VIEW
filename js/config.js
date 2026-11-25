@@ -1,15 +1,16 @@
 // 설정값 모음: 유형 목록, 집중도 단계 기준, 저장 키.
 // 팀에서 기준을 바꿀 때는 이 파일만 수정하면 된다.
 
+// persona: 결과 화면에 띄우는 대표 유형 이름 (재미를 위한 표현)
 export const CONTENT_TYPES = [
-  { id: 'vlog',      label: '브이로그·일상형',  persona: '브이로거형',       color: '#ff8a3d' },
-  { id: 'entertain', label: '엔터테인먼트형',   persona: '엔터테인먼트형',   color: '#f0478f' },
-  { id: 'game',      label: '게임형',           persona: '게이머형',         color: '#7b5cff' },
-  { id: 'beauty',    label: '뷰티·패션형',      persona: '뷰티·패션형',      color: '#ff6b7a' },
-  { id: 'knowledge', label: '지식·교육형',      persona: '지식 탐구형',      color: '#13b07e' },
-  { id: 'music',     label: '음악형',           persona: '음악 애호형',      color: '#3b82f6' },
-  { id: 'sports',    label: '스포츠형',         persona: '스포츠 팬형',      color: '#1fb5c9' },
-  { id: 'news',      label: '뉴스·시사형',      persona: '뉴스·시사형',      color: '#64748b' },
+  { id: 'vlog',      label: '브이로그·일상형',  persona: '남의 하루 창문',       color: '#ff8a3d' },
+  { id: 'entertain', label: '엔터테인먼트형',   persona: '웃음 자판기',   color: '#f0478f' },
+  { id: 'game',      label: '게임형',           persona: '한판 놀이터',         color: '#7b5cff' },
+  { id: 'beauty',    label: '뷰티·패션형',      persona: '스타일 거울',      color: '#ff6b7a' },
+  { id: 'knowledge', label: '지식·교육형',      persona: '호기심 서재',      color: '#13b07e' },
+  { id: 'music',     label: '음악형',           persona: '귀 속 라디오',      color: '#3b82f6' },
+  { id: 'sports',    label: '스포츠형',         persona: '함성 관중석',      color: '#1fb5c9' },
+  { id: 'news',      label: '뉴스·시사형',      persona: '세상 안테나',      color: '#64748b' },
 ];
 
 // 문장 속에서 쓰는 이름 ("지식·교육 콘텐츠")
@@ -31,7 +32,12 @@ export const EXPLORE_QUERIES = {
   news: '뉴스 및 시사',
 };
 
-export const UNCLASSIFIED = { id: 'unclassified', label: '유형 미분류', color: '#b8c0cc' };
+export const UNCLASSIFIED = { id: 'unclassified', label: '아직 분류하지 못함', persona: '이름표 없는 서랍', color: '#b8c0cc' };
+
+// 대표 유형 카드에 띄우는 캐릭터 그림 (asset/characters). 미분류(이름표 없는 서랍)는 그림 없음.
+export const CHARACTER_IMG = Object.fromEntries(
+  ['vlog', 'entertain', 'game', 'beauty', 'knowledge', 'music', 'sports', 'news'].map((id) => [id, `./asset/characters/${id}.png`])
+);
 
 export const TYPE_BY_ID = Object.fromEntries(
   [...CONTENT_TYPES, UNCLASSIFIED].map((t) => [t.id, t])

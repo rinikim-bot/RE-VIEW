@@ -4,7 +4,7 @@ import { readFileSync } from 'node:fs';
 import { parseTakeoutJSON, parseTakeoutHTML, detectAndParse, parseHumanDate, cleanTitle, ParseError } from '../js/parser.js';
 import {
   buildChannelIndex, classifyChannel, prepareRecords, dataRange, resolvePeriod, analyze,
-  computeConcentration, comparePrediction, computeTypes, toHistoryEntry, compareEntries, normalizeName, hasEnoughSample,
+  computeConcentration, comparePrediction, computeTypes, toHistoryEntry, compareEntries, normalizeName, hasEnoughSample, buildHeadline, withIyeyo,
 } from '../js/analyzer.js';
 
 const db = JSON.parse(readFileSync(new URL('../data/channel-types.json', import.meta.url), 'utf8'));
@@ -248,4 +248,26 @@ test('미분류 채널 목록에 채널 ID가 함께 담긴다 (DB 구축용 CSV
   const byName = Object.fromEntries(r.unclassifiedChannels.map((c) => [c.name, c.channelId]));
   assert.equal(byName['새로운채널'], 'UCaaaaaaaaaaaaaaaaaaaaaa');
   assert.equal(byName['아이디없는채널'], '');
+});
+
+test('한 줄 요약: 예상 일치 / 불일치 / 예상 없음 / 분류된 기록 없음', () => {
+  const t = computeTypes([{ channel: 'YTN' }, { channel: 'YTN' }, { channel: 'TED' }], index);
+  const match = buildHeadline(comparePrediction({ primary: 'news' }, t), t);
+  assert.equal(match.main, '예상 적중! 기록의 1위도 세상 안테나!');
+  assert.match(match.sub[0], /^내 시청의 66\.7%는 뉴스·시사였어요\.$/);
+  const mis = buildHeadline(comparePrediction({ primary: 'knowledge' }, t), t);
+  assert.equal(mis.main, '내가 예상한 건 호기심 서재, 기록이 가리킨 건 세상 안테나!');
+  const none = buildHeadline(comparePrediction(null, t), t);
+  assert.equal(none.main, null);
+  assert.equal(none.sub.length, 2);
+  assert.equal(none.sub[1], '내가 가장 많이 본 콘텐츠는 뉴스·시사예요.');
+  const empty = computeTypes([{ channel: '모름' }], index);
+  assert.equal(buildHeadline(comparePrediction({ primary: 'news' }, empty), empty), null);
+});
+
+test('조사: 이에요/예요', () => {
+  assert.equal(withIyeyo('음악'), '음악이에요');
+  assert.equal(withIyeyo('스포츠'), '스포츠예요');
+  assert.equal(withIyeyo('게임'), '게임이에요');
+  assert.equal(withIyeyo('엔터테인먼트'), '엔터테인먼트예요');
 });
