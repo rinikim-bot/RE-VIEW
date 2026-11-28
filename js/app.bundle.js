@@ -31,6 +31,18 @@
     sports: "\uC2A4\uD3EC\uCE20 \uACBD\uAE30 \uBC0F \uD558\uC774\uB77C\uC774\uD2B8",
     news: "\uB274\uC2A4 \uBC0F \uC2DC\uC0AC"
   };
+  var PERSONA_DESC = {
+    vlog: "\uB2E4\uB978 \uC0AC\uB78C\uB4E4\uC758 \uC77C\uC0C1\uC744 \uAD6C\uACBD\uD558\uBA70 \uC18C\uC18C\uD55C \uC990\uAC70\uC6C0\uC744 \uBC1C\uACAC\uD574\uC694. \uC5EC\uD589\uBD80\uD130 \uD3C9\uBC94\uD55C \uD558\uB8E8\uAE4C\uC9C0, \uC0AC\uB78C\uB4E4\uC758 \uC774\uC57C\uAE30\uB97C \uC88B\uC544\uD574\uC694.",
+    entertain: "\uC6C3\uC74C\uACFC \uC7AC\uBBF8\uB97C \uCC3E\uC544 \uCF58\uD150\uCE20\uB97C \uC990\uACA8\uC694. \uC608\uB2A5, \uBC08, \uC720\uBA38\uCC98\uB7FC \uAC00\uBCCD\uAC8C \uC990\uAE38 \uC218 \uC788\uB294 \uC601\uC0C1\uC5D0 \uB04C\uB824\uC694.",
+    game: "\uAC8C\uC784 \uC18D \uC138\uACC4\uC640 \uD50C\uB808\uC774\uB97C \uC990\uACA8\uC694. \uAC8C\uC784 \uC601\uC0C1\uBD80\uD130 \uACF5\uB7B5, \uC2A4\uD2B8\uB9AC\uBA38\uC758 \uD50C\uB808\uC774\uAE4C\uC9C0 \uAD00\uC2EC\uC774 \uC774\uC5B4\uC838\uC694.",
+    beauty: "\uC0C8\uB85C\uC6B4 \uC2A4\uD0C0\uC77C\uACFC \uCDE8\uD5A5\uC744 \uBC1C\uACAC\uD558\uB294 \uAC78 \uC88B\uC544\uD574\uC694. \uD328\uC158, \uBA54\uC774\uD06C\uC5C5, \uCF54\uB514 \uB4F1 \uB098\uB9CC\uC758 \uAC10\uAC01\uC744 \uCC44\uC6CC\uAC00\uC694.",
+    knowledge: "\uAD81\uAE08\uD55C \uAC83\uC744 \uC54C\uC544\uAC00\uACE0 \uC0C8\uB85C\uC6B4 \uC9C0\uC2DD\uC744 \uC313\uB294 \uAC78 \uC990\uACA8\uC694. \uBAB0\uB790\uB358 \uC0AC\uC2E4\uC744 \uBC1C\uACAC\uD558\uB294 \uC21C\uAC04\uC5D0 \uD765\uBBF8\uB97C \uB290\uAEF4\uC694.",
+    music: "\uC74C\uC545\uC73C\uB85C \uC77C\uC0C1\uC5D0 \uBD84\uC704\uAE30\uB97C \uB354\uD574\uC694. \uC88B\uC544\uD558\uB294 \uB178\uB798\uBD80\uD130 \uC0C8\uB85C\uC6B4 \uC74C\uC545\uACFC \uD50C\uB808\uC774\uB9AC\uC2A4\uD2B8\uAE4C\uC9C0 \uC990\uACA8 \uCC3E\uC544\uC694.",
+    sports: "\uACBD\uAE30\uC758 \uD750\uB984\uACFC \uB728\uAC70\uC6B4 \uC21C\uAC04\uC744 \uC990\uACA8\uC694. \uC120\uC218\uB4E4\uC758 \uD65C\uC57D\uACFC \uACBD\uAE30 \uD558\uC774\uB77C\uC774\uD2B8\uC5D0 \uAD00\uC2EC\uC774 \uB9CE\uC544\uC694.",
+    news: "\uC138\uC0C1\uC5D0\uC11C \uC77C\uC5B4\uB098\uB294 \uC77C\uC5D0 \uAD00\uC2EC\uC774 \uB9CE\uC544\uC694. \uB274\uC2A4\uC640 \uB2E4\uC591\uD55C \uC774\uC288\uB97C \uD1B5\uD574 \uC138\uC0C1\uC758 \uD750\uB984\uC744 \uC0B4\uD3B4\uBD10\uC694.",
+    unclassified: "\uC544\uC9C1 \uCC44\uB110 \uC815\uBCF4\uAC00 \uBD80\uC871\uD574\uC11C \uCDE8\uD5A5\uC744 \uC815\uD558\uAE30 \uC5B4\uB824\uC6CC\uC694. \uCC44\uB110 DB\uC5D0 \uCC44\uB110\uC774 \uB354\uD574\uC9C0\uBA74 \uB354 \uC815\uD655\uD558\uAC8C \uC54C\uB824\uB4DC\uB9B4\uAC8C\uC694."
+  };
+  var PERSONA_COMMON = "\uAC00\uC7A5 \uB9CE\uC774 \uBCF8 \uCF58\uD150\uCE20\uB97C \uC911\uC2EC\uC73C\uB85C \uC5EC\uB7EC \uCDE8\uD5A5\uC744 \uD568\uAED8 \uC990\uAE30\uACE0 \uC788\uB124\uC694.";
   var UNCLASSIFIED = { id: "unclassified", label: "\uC544\uC9C1 \uBD84\uB958\uD558\uC9C0 \uBABB\uD568", persona: "\uC774\uB984\uD45C \uC5C6\uB294 \uC11C\uB78D", color: "#b8c0cc" };
   var CHARACTER_IMG = Object.fromEntries(
     ["vlog", "entertain", "game", "beauty", "knowledge", "music", "sports", "news"].map((id) => [id, `./asset/characters/${id}.png`])
@@ -1301,7 +1313,7 @@
     <div class="stack" style="gap:16px">
       <p class="eyebrow">\uB098\uC758 \uCF58\uD150\uCE20 \uC18C\uBE44 \uD328\uD134 \uBD84\uC11D</p>
       <h1>\uB0B4\uAC00 \uBCF4\uB294 \uC720\uD29C\uBE0C,<br><em>\uC0DD\uAC01\uD55C \uADF8\uB300\uB85C</em>\uC77C\uAE4C?</h1>
-      <p class="lead">\uD3C9\uC18C \uB9CE\uC774 \uBCF8\uB2E4\uACE0 \uC0DD\uAC01\uD558\uB294 \uC720\uD615\uC744 \uBA3C\uC800 \uACE0\uB974\uACE0, \uC2E4\uC81C \uC2DC\uCCAD\uAE30\uB85D\uACFC \uBE44\uAD50\uD574 \uBCF4\uC138\uC694. \uC5B4\uB5A4 \uC720\uD615\uC744 \uC5BC\uB9C8\uB098 \uBD24\uB294\uC9C0, \uC2DC\uCCAD\uC774 \uBA87\uBA87 \uCC44\uB110\uC5D0 \uBAB0\uB824 \uC788\uB294\uC9C0 \uC22B\uC790\uB85C \uBCF4\uC5EC\uB4DC\uB824\uC694.</p>
+      <p class="lead">\uD3C9\uC18C \uB9CE\uC774 \uBCF8\uB2E4\uACE0 \uC0DD\uAC01\uD558\uB294 \uC720\uD615\uC744 \uBA3C\uC800 \uACE0\uB974\uACE0, \uC2E4\uC81C \uC2DC\uCCAD\uAE30\uB85D\uACFC \uBE44\uAD50\uD574 \uBCF4\uC138\uC694.</p>
       <div class="trust-row"><span class="pill">\uC11C\uBC84 \uC804\uC1A1 \uC5C6\uC74C</span><span class="pill">\uB85C\uADF8\uC778 \uC5C6\uC74C</span><span class="pill">\uACC4\uC0B0 \uADFC\uAC70 \uACF5\uAC1C</span></div>
       <div class="btn-row">
         <a class="btn primary" href="#predict" id="startBtn">\uB0B4 \uC2DC\uCCAD \uCDE8\uD5A5 \uC54C\uC544\uBCF4\uAE30</a>
@@ -1362,7 +1374,7 @@
     const choices = (name, kind) => CONTENT_TYPES.map((t) => `
     <div class="choice" style="--tc:${t.color}">
       <input type="${kind}" name="${name}" id="${name}-${t.id}" value="${t.id}">
-      <label for="${name}-${t.id}">${dot(t.color)}${t.label}<span class="mark" aria-hidden="true"></span></label>
+      <label for="${name}-${t.id}">${dot(t.color)}${TYPE_NOUN[t.id]}<span class="mark" aria-hidden="true"></span></label>
     </div>`).join("");
     app.innerHTML = `
   <header class="stack">
@@ -1486,7 +1498,7 @@
   <header class="stack">
     <p class="eyebrow">2\uB2E8\uACC4 \xB7 \uB0B4 \uC720\uD29C\uBE0C \uAE30\uB85D \uAC00\uC838\uC624\uAE30</p>
     <h1 class="page-title">YouTube \uC2DC\uCCAD\uAE30\uB85D \uD30C\uC77C\uC744 \uC62C\uB824 \uC8FC\uC138\uC694</h1>
-    <p class="lead">Google Takeout\uC5D0\uC11C \uBC1B\uC740 <b>zip \uD30C\uC77C\uC744 \uADF8\uB300\uB85C</b> \uC62C\uB9AC\uAC70\uB098, \uC555\uCD95\uC744 \uD47C <code>watch-history.json</code>\xB7<code>watch-history.html</code>\uC744 \uC62C\uB824 \uC8FC\uC138\uC694. \uC774 \uBE0C\uB77C\uC6B0\uC800 \uC548\uC5D0\uC11C \uBC14\uB85C \uC77D\uACE0, \uD30C\uC77C\uC740 \uC5B4\uB514\uC5D0\uB3C4 \uC804\uC1A1\uB418\uAC70\uB098 \uC800\uC7A5\uB418\uC9C0 \uC54A\uC544\uC694.</p>
+    <p class="lead">\uBC1B\uC740 Takeout <b>zip \uD30C\uC77C\uC744 \uADF8\uB300\uB85C</b> \uC62C\uB824 \uC8FC\uC138\uC694. \uD30C\uC77C\uC740 \uC774 \uBE0C\uB77C\uC6B0\uC800 \uC548\uC5D0\uC11C\uB9CC \uC77D\uACE0, \uC5B4\uB514\uC5D0\uB3C4 \uBCF4\uB0B4\uAC70\uB098 \uC800\uC7A5\uD558\uC9C0 \uC54A\uC544\uC694.</p>
   </header>
   ${state.dbError ? `<p class="notice warn">${esc(state.dbError)}</p>` : ""}
   <div class="notice small">${pred ? `\uC608\uC0C1 \uC800\uC7A5\uB428: \uAC00\uC7A5 \uB9CE\uC774 <b>${typeLabel(pred.primary)}</b>${pred.secondary.length ? `, \uC790\uC8FC ${pred.secondary.map(typeLabel).join(", ")}` : ""} \xB7 <a href="#predict">\uBC14\uAFB8\uAE30</a>` : '\uC544\uC9C1 \uC608\uC0C1\uC744 \uACE0\uB974\uC9C0 \uC54A\uC558\uC5B4\uC694. \uACB0\uACFC\uC5D0\uC11C \uBE44\uAD50\uD558\uB824\uBA74 <a href="#predict">\uBA3C\uC800 \uC608\uC0C1\uC744 \uACE8\uB77C \uC8FC\uC138\uC694</a>.'}</div>
@@ -1585,7 +1597,7 @@
     state.result = null;
     state.savedId = null;
     const box = document.getElementById("uploadStatus");
-    box.innerHTML = '<div class="card"><p>\uD30C\uC77C\uC744 \uC77D\uB294 \uC911\uC774\uC5D0\uC694\u2026</p></div>';
+    box.innerHTML = '<div class="card" role="status"><p>\uD30C\uC77C\uC744 \uC77D\uACE0 \uC788\uC5B4\uC694\u2026</p></div>';
     const name = file.name || "";
     try {
       if (!/\.(zip|json|html?)$/i.test(name)) throw new ParseError("\uC9C0\uC6D0\uD558\uC9C0 \uC54A\uB294 \uD30C\uC77C \uD615\uC2DD\uC774\uC5D0\uC694.", "Takeout zip \uD30C\uC77C\uC774\uB098 watch-history.json\xB7watch-history.html \uD30C\uC77C\uC744 \uC62C\uB824 \uC8FC\uC138\uC694.");
@@ -1613,23 +1625,42 @@
       if (!(e instanceof ParseError)) console.error(e);
     }
     renderUploadStatus();
+    const status = document.getElementById("uploadStatus");
+    if (status && status.firstElementChild) {
+      const calm = window.matchMedia && window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+      status.scrollIntoView({ block: "start", behavior: calm ? "auto" : "smooth" });
+    }
+  }
+  function setDropDone(done) {
+    const drop = document.getElementById("drop");
+    if (!drop) return;
+    drop.classList.toggle("compact", done);
+    const big = drop.querySelector(".big");
+    if (big) big.textContent = done ? "\uB2E4\uB978 \uD30C\uC77C\uB85C \uBC14\uAFB8\uAE30" : "\uD30C\uC77C\uC744 \uC5EC\uAE30\uB85C \uB04C\uC5B4\uB2E4 \uB193\uAC70\uB098 \uB20C\uB7EC\uC11C \uC120\uD0DD\uD574 \uC8FC\uC138\uC694";
   }
   function renderUploadStatus() {
     const box = document.getElementById("uploadStatus");
     if (!box) return;
     if (state.uploadError) {
+      setDropDone(false);
       box.innerHTML = `<div class="notice warn" role="alert"><strong>${esc(state.uploadError.message)}</strong><br>${esc(state.uploadError.hint)}</div>`;
       return;
     }
     const u = state.upload;
     if (!u || u.isSample) {
+      setDropDone(false);
       box.innerHTML = "";
       return;
     }
+    setDropDone(true);
     const { parsed, prepared, range } = u;
     const noChannel = prepared.records.filter((r) => !r.channel).length;
     const info = parsed.info;
     box.innerHTML = `
+  <div class="notice ok" role="status">
+    <span class="ok-mark" aria-hidden="true">\u2713</span>
+    <div><strong>\uD30C\uC77C\uC774 \uD655\uC778\uB418\uC5C8\uC5B4\uC694</strong><br><span class="small">${esc(u.fileName)} \xB7 \uBD84\uC11D \uAC00\uB2A5\uD55C \uAE30\uB85D ${n0(prepared.records.length)}\uAC74</span></div>
+  </div>
   <section class="card stack" aria-live="polite">
     <h2>\uD30C\uC77C \uD655\uC778 \uACB0\uACFC <span class="pill accent">${parsed.format.toUpperCase()}</span></h2>
     <p class="small muted">${esc(u.fileName)}${u.innerName ? ` \u2192 zip \uC548\uC758 <code>${esc(u.innerName)}</code>\uB97C \uCC3E\uC544 \uC77D\uC5C8\uC5B4\uC694` : ""}</p>
@@ -1904,6 +1935,7 @@
           <div class="persona-text">
             <span class="kicker">\uB0B4\uAC00 \uAC00\uC7A5 \uB9CE\uC774 \uBCF4\uB294 \uBD84\uC57C</span>
             <span class="persona">${rep.persona}</span>
+            <p class="persona-desc">${PERSONA_DESC[rep.id] || ""} ${PERSONA_COMMON}</p>
           </div>
           ${CHARACTER_IMG[rep.id] ? `<img class="persona-char" src="${CHARACTER_IMG[rep.id]}" alt="${rep.persona} \uCE90\uB9AD\uD130" width="360" height="360">` : ""}
         </div>
@@ -1915,7 +1947,7 @@
           <span class="kicker">\uB0B4\uAC00 \uAC00\uC7A5 \uB9CE\uC774 \uBCF4\uB294 \uBD84\uC57C</span>
           <span class="persona">${UNCLASSIFIED.persona}</span>
         </div>
-        <p class="small">\uCC44\uB110 \uC815\uBCF4\uAC00 \uC544\uC9C1 \uC5C6\uC5B4 \uBD84\uC57C\uB97C \uC815\uD558\uC9C0 \uBABB\uD55C \uAE30\uB85D\uC774\uC5D0\uC694. \uCC44\uB110 DB\uC5D0 \uCC44\uB110\uC774 \uCD94\uAC00\uB418\uBA74 \uBD84\uC57C\uB97C \uC54C \uC218 \uC788\uC5B4\uC694.</p>
+        <p class="persona-desc">${PERSONA_DESC.unclassified}</p>
         <p class="fine">\uC720\uD615 \uC774\uB984\uC740 \uC7AC\uBBF8\uB97C \uC704\uD55C \uD45C\uD604\uC774\uC5D0\uC694. \uC131\uACA9\uC774\uB098 \uC815\uCCB4\uC131\uC744 \uD310\uC815\uD558\uC9C0 \uC54A\uC544\uC694.</p>
       </div>`}
     ${topChannelsCard(r.top5, c)}

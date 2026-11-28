@@ -1,5 +1,5 @@
 // 화면(UI) 담당. 계산은 analyzer.js, 파일 해석은 parser.js가 맡는다.
-import { CONTENT_TYPES, UNCLASSIFIED, TYPE_BY_ID, TYPE_NOUN, HHI_LEVELS, PERIOD_OPTIONS, DEFAULT_PERIOD, STORAGE_KEYS, MIN_SAMPLE, CHARACTER_IMG } from './config.js';
+import { CONTENT_TYPES, UNCLASSIFIED, TYPE_BY_ID, TYPE_NOUN, PERSONA_DESC, PERSONA_COMMON, HHI_LEVELS, PERIOD_OPTIONS, DEFAULT_PERIOD, STORAGE_KEYS, MIN_SAMPLE, CHARACTER_IMG } from './config.js';
 import { detectAndParse, ParseError } from './parser.js';
 import {
   buildChannelIndex, prepareRecords, dataRange, resolvePeriod, filterByPeriod, analyze,
@@ -105,7 +105,7 @@ function viewHome() {
     <div class="stack" style="gap:16px">
       <p class="eyebrow">나의 콘텐츠 소비 패턴 분석</p>
       <h1>내가 보는 유튜브,<br><em>생각한 그대로</em>일까?</h1>
-      <p class="lead">평소 많이 본다고 생각하는 유형을 먼저 고르고, 실제 시청기록과 비교해 보세요. 어떤 유형을 얼마나 봤는지, 시청이 몇몇 채널에 몰려 있는지 숫자로 보여드려요.</p>
+      <p class="lead">평소 많이 본다고 생각하는 유형을 먼저 고르고, 실제 시청기록과 비교해 보세요.</p>
       <div class="trust-row"><span class="pill">서버 전송 없음</span><span class="pill">로그인 없음</span><span class="pill">계산 근거 공개</span></div>
       <div class="btn-row">
         <a class="btn primary" href="#predict" id="startBtn">내 시청 취향 알아보기</a>
@@ -170,7 +170,7 @@ function viewPredict() {
   const choices = (name, kind) => CONTENT_TYPES.map((t) => `
     <div class="choice" style="--tc:${t.color}">
       <input type="${kind}" name="${name}" id="${name}-${t.id}" value="${t.id}">
-      <label for="${name}-${t.id}">${dot(t.color)}${t.label}<span class="mark" aria-hidden="true"></span></label>
+      <label for="${name}-${t.id}">${dot(t.color)}${TYPE_NOUN[t.id]}<span class="mark" aria-hidden="true"></span></label>
     </div>`).join('');
   app.innerHTML = `
   <header class="stack">
@@ -278,7 +278,7 @@ function viewUpload() {
   <header class="stack">
     <p class="eyebrow">2단계 · 내 유튜브 기록 가져오기</p>
     <h1 class="page-title">YouTube 시청기록 파일을 올려 주세요</h1>
-    <p class="lead">Google Takeout에서 받은 <b>zip 파일을 그대로</b> 올리거나, 압축을 푼 <code>watch-history.json</code>·<code>watch-history.html</code>을 올려 주세요. 이 브라우저 안에서 바로 읽고, 파일은 어디에도 전송되거나 저장되지 않아요.</p>
+    <p class="lead">받은 Takeout <b>zip 파일을 그대로</b> 올려 주세요. 파일은 이 브라우저 안에서만 읽고, 어디에도 보내거나 저장하지 않아요.</p>
   </header>
   ${state.dbError ? `<p class="notice warn">${esc(state.dbError)}</p>` : ''}
   <div class="notice small">${pred ? `예상 저장됨: 가장 많이 <b>${typeLabel(pred.primary)}</b>${pred.secondary.length ? `, 자주 ${pred.secondary.map(typeLabel).join(', ')}` : ''} · <a href="#predict">바꾸기</a>` : '아직 예상을 고르지 않았어요. 결과에서 비교하려면 <a href="#predict">먼저 예상을 골라 주세요</a>.'}</div>
@@ -352,7 +352,7 @@ async function handleFile(file) {
   state.uploadError = null;
   state.result = null; state.savedId = null;
   const box = document.getElementById('uploadStatus');
-  box.innerHTML = '<div class="card"><p>파일을 읽는 중이에요…</p></div>';
+  box.innerHTML = '<div class="card" role="status"><p>파일을 읽고 있어요…</p></div>';
   const name = file.name || '';
   try {
     if (!/\.(zip|json|html?)$/i.test(name)) throw new ParseError('지원하지 않는 파일 형식이에요.', 'Takeout zip 파일이나 watch-history.json·watch-history.html 파일을 올려 주세요.');
@@ -378,21 +378,42 @@ async function handleFile(file) {
     if (!(e instanceof ParseError)) console.error(e);
   }
   renderUploadStatus();
+  // 확인 결과(초록 체크)가 화면 밖에 있지 않도록 위치를 맞춘다.
+  const status = document.getElementById('uploadStatus');
+  if (status && status.firstElementChild) {
+    const calm = window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+    status.scrollIntoView({ block: 'start', behavior: calm ? 'auto' : 'smooth' });
+  }
+}
+
+// 파일 확인이 끝나면 큰 업로드 칸을 작게 줄여서, 아래 결과가 먼저 눈에 들어오게 한다.
+function setDropDone(done) {
+  const drop = document.getElementById('drop');
+  if (!drop) return;
+  drop.classList.toggle('compact', done);
+  const big = drop.querySelector('.big');
+  if (big) big.textContent = done ? '다른 파일로 바꾸기' : '파일을 여기로 끌어다 놓거나 눌러서 선택해 주세요';
 }
 
 function renderUploadStatus() {
   const box = document.getElementById('uploadStatus');
   if (!box) return;
   if (state.uploadError) {
+    setDropDone(false);
     box.innerHTML = `<div class="notice warn" role="alert"><strong>${esc(state.uploadError.message)}</strong><br>${esc(state.uploadError.hint)}</div>`;
     return;
   }
   const u = state.upload;
-  if (!u || u.isSample) { box.innerHTML = ''; return; }
+  if (!u || u.isSample) { setDropDone(false); box.innerHTML = ''; return; }
+  setDropDone(true);
   const { parsed, prepared, range } = u;
   const noChannel = prepared.records.filter((r) => !r.channel).length;
   const info = parsed.info;
   box.innerHTML = `
+  <div class="notice ok" role="status">
+    <span class="ok-mark" aria-hidden="true">✓</span>
+    <div><strong>파일이 확인되었어요</strong><br><span class="small">${esc(u.fileName)} · 분석 가능한 기록 ${n0(prepared.records.length)}건</span></div>
+  </div>
   <section class="card stack" aria-live="polite">
     <h2>파일 확인 결과 <span class="pill accent">${parsed.format.toUpperCase()}</span></h2>
     <p class="small muted">${esc(u.fileName)}${u.innerName ? ` → zip 안의 <code>${esc(u.innerName)}</code>를 찾아 읽었어요` : ''}</p>
@@ -660,6 +681,7 @@ function viewResult() {
           <div class="persona-text">
             <span class="kicker">내가 가장 많이 보는 분야</span>
             <span class="persona">${rep.persona}</span>
+            <p class="persona-desc">${PERSONA_DESC[rep.id] || ''} ${PERSONA_COMMON}</p>
           </div>
           ${CHARACTER_IMG[rep.id] ? `<img class="persona-char" src="${CHARACTER_IMG[rep.id]}" alt="${rep.persona} 캐릭터" width="360" height="360">` : ''}
         </div>
@@ -672,7 +694,7 @@ function viewResult() {
           <span class="kicker">내가 가장 많이 보는 분야</span>
           <span class="persona">${UNCLASSIFIED.persona}</span>
         </div>
-        <p class="small">채널 정보가 아직 없어 분야를 정하지 못한 기록이에요. 채널 DB에 채널이 추가되면 분야를 알 수 있어요.</p>
+        <p class="persona-desc">${PERSONA_DESC.unclassified}</p>
         <p class="fine">유형 이름은 재미를 위한 표현이에요. 성격이나 정체성을 판정하지 않아요.</p>
       </div>`}
     ${topChannelsCard(r.top5, c)}
